@@ -10,6 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       // Tu peux étendre ton design system ici (couleurs, fonts, etc.)
+            colors: { border: "hsl(var(--border))" },
     },
   },
   darkMode: "class", // pour ton thème sombre contrôlé par une classe
