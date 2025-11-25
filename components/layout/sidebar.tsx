@@ -1,10 +1,8 @@
 import Link from 'next/link';
-import { Home, BarChart3, Brain, Cube, Settings } from 'lucide-react';const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
+import { Home, BarChart3, Brain, Box, Settings } from 'lucide-react';  { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'AI Copilot', href: '/dashboard/ai-copilot', icon: Brain },
-  { name: 'Digital Twin', href: '/dashboard/digital-twin', icon: Cube },  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
+  { name: 'Digital Twin', href: '/dashboard/digital-twin', icon: Box }, { name: 'Settings', href: '/dashboard/settings', icon: Settings },];
 
 export default function Sidebar() {
   return (
