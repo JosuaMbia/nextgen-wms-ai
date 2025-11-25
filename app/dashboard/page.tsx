@@ -11,8 +11,7 @@ interface MetricCard {
 }
 
 export default function Dashboard() {
-  const [metrics, setMetrics] = useState<MetricCard[]>([
-    {
+const [metrics] = useState<MetricCard[]>([    {
       title: 'Total SKUs',
       value: '12,847',
       change: 5.2,
