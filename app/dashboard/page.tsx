@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BarChart, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 
 interface MetricCard {
@@ -25,94 +25,62 @@ export default function Dashboard() {
       icon: <TrendingUp className="h-5 w-5" />
     },
     {
-      title: 'Inventory Health',
-      value: '94.7%',
-      change: 2.4,
-      icon: <Zap className="h-5 w-5" />
+      title: 'Warehouse Utilization',
+      value: '78.3%',
+      change: 1.8,
+      icon: <AlertCircle className="h-5 w-5" />
     },
     {
-      title: 'Alerts',
-      value: '7',
-      change: -1.5,
-      icon: <AlertCircle className="h-5 w-5" />
+      title: 'Efficiency Score',
+      value: '92/100',
+      change: 3.5,
+      icon: <Zap className="h-5 w-5" />
     }
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Warehouse Dashboard</h1>
-        <p className="text-slate-400">Real-time monitoring and predictive analytics</p>
-      </div>
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {metrics.map((metric, idx) => (
-          <div
-            key={idx}
-            className="rounded-lg border border-slate-800 bg-slate-900/50 p-6 backdrop-blur-sm hover:border-cyan-600/50 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-slate-300">{metric.title}</h3>
-              <div className="text-cyan-500">{metric.icon}</div>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <p className="text-2xl font-bold text-white">{metric.value}</p>
-              <span
-                className={`text-xs font-semibold ${
-                  metric.change >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}
-              >
-                {metric.change >= 0 ? '+' : ''}{metric.change}%
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Inventory Forecast */}
-        <div className="lg:col-span-2 rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-          <h2 className="mb-4 text-lg font-bold text-white">Inventory Forecast (7 days)</h2>
-          <div className="h-64 flex items-center justify-center text-slate-500">
-            <p>Chart rendering area - Connect to analytics service</p>
-          </div>
+    <div className="min-h-screen bg-slate-950 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">Dashboard</h1>
+          <p className="text-slate-400">Welcome to NextGen WMS AI - Real-time Warehouse Intelligence</p>
         </div>
 
-        {/* Recent Alerts */}
-        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-          <h2 className="mb-4 text-lg font-bold text-white">Recent Alerts</h2>
-          <div className="space-y-3">
-            {[
-              { type: 'warning', msg: 'Low stock: SKU-4521' },
-              { type: 'error', msg: 'Picking delay detected' },
-              { type: 'info', msg: 'Order batch optimized' }
-            ].map((alert, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-slate-800/50">
-                <div
-                  className={`h-2 w-2 rounded-full ${
-                    alert.type === 'error'
-                      ? 'bg-red-500'
-                      : alert.type === 'warning'
-                      ? 'bg-yellow-500'
-                      : 'bg-blue-500'
-                  }`}
-                />
-                <span className="text-slate-300">{alert.msg}</span>
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {metrics.map((metric, index) => (
+            <div key={index} className="bg-slate-900 rounded-lg p-6 border border-slate-800 hover:border-cyan-500 transition">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-slate-400 text-sm font-medium">{metric.title}</span>
+                <div className="text-cyan-400">{metric.icon}</div>
               </div>
-            ))}
+              <div className="text-3xl font-bold text-white mb-2">{metric.value}</div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${metric.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {metric.change >= 0 ? '+' : ''}{metric.change}%
+                </span>
+                <span className="text-slate-500 text-sm">vs last month</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg p-8 border border-cyan-500/20">
+          <h2 className="text-2xl font-bold text-white mb-4">Getting Started</h2>
+          <p className="text-slate-300 mb-6">
+            Your NextGen WMS AI system is now active. Start by connecting your Firebase credentials and setting up your first warehouse.
+          </p>
+          <div className="flex gap-4">
+            <button className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition font-medium">
+              Setup Warehouse
+            </button>
+            <button className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition font-medium">
+              View Documentation
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* AI Insights */}
-      <div className="mt-6 rounded-lg border border-slate-800 bg-gradient-to-r from-cyan-900/20 to-blue-900/20 p-6">
-        <h2 className="mb-3 text-lg font-bold text-white">AI Insights & Recommendations</h2>
-        <p className="text-slate-300">
-          Based on current metrics, our AI recommends: Optimize picking routes for zone C2 (estimated 12% time savings), adjust stock levels for high-demand items, and monitor weather-related delivery delays.
-        </p>
       </div>
     </div>
   );
