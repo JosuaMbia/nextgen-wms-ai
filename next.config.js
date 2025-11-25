@@ -7,7 +7,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: true,
+    serverActions: { enabled: true },
   },
   webpack: (config) => {
     config.resolve.fallback = {
