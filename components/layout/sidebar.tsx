@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { Home, BarChart3, Zap, Brain, Cube3D, Settings } from 'lucide-react';
-
+import { Home, BarChart3, Brain, Cube3D, Settings } from 'lucide-react';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
