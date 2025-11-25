@@ -7,6 +7,8 @@
   --foreground: 248 250 252;
   --primary: 6 182 212;
   --secondary: 75 85 99;
+    --border: 209 213 219;
+  
 }
 
 * {
