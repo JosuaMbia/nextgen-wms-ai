@@ -98,7 +98,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
+//     const { id } = params;
 
     // TODO: Implémenter la suppression via InventoryService
     return NextResponse.json(
