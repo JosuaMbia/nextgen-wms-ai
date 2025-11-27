@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 // Schema de validation partiel pour la mise à jour
 const inventoryUpdateSchema = z.object({
