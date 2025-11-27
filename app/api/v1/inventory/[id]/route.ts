@@ -4,7 +4,7 @@ import { z } from 'zod';
 // GET /api/v1/inventory/[id] - Récupère un item d'inventaire spécifique
 export async function GET(
   request: NextRequest,
-  { params }: { params: { __id: string } }) {
+  { params }: { params: { _id: string } }) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
     
@@ -15,7 +15,7 @@ export async function GET(
       );
     }
 
-    const { id } = params;
+    const { _id } = params;
 
     // TODO: Implémenter la récupération via InventoryService
     return NextResponse.json(
@@ -52,7 +52,7 @@ export async function PUT(
       );
     }
 
-    const { id } = params;
+    const { _id } = params;
     const body = await request.json();
 
     // TODO: Implémenter la mise à jour via InventoryService
@@ -97,7 +97,7 @@ export async function DELETE(
       );
     }
 
-//     const { id } = params;
+//     const { _id } = params;
 
     // TODO: Implémenter la suppression via InventoryService
     return NextResponse.json(
