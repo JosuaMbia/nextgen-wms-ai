@@ -1,25 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-// Schema de validation partiel pour la mise à jour
-const inventoryUpdateSchema = z.object({
-  productId: z.string().optional(),
-  warehouseId: z.string().optional(),
-  quantity: z.number().int().min(0).optional(),
-  location: z.object({
-    zone: z.string().optional(),
-    aisle: z.string().optional(),
-    rack: z.string().optional(),
-    bin: z.string().optional(),
-  }).optional(),
-  minStock: z.number().int().min(0).optional(),
-  maxStock: z.number().int().min(0).optional(),
-  reorderPoint: z.number().int().min(0).optional(),
-  status: z.enum(['available', 'reserved', 'in_transit', 'damaged', 'expired']).optional(),
-  lastStockCheck: z.string().optional(),
-  notes: z.string().optional(),
-});
-
 // GET /api/v1/inventory/[id] - Récupère un item d'inventaire spécifique
 export async function GET(
   request: NextRequest,
@@ -74,13 +55,12 @@ export async function PUT(
 
     const { id } = params;
     const body = await request.json();
-    const validatedData = inventoryUpdateSchema.parse(body);
 
     // TODO: Implémenter la mise à jour via InventoryService
     return NextResponse.json(
       { 
         success: true,
-        data: { id, ...validatedData },
+        data: { id, ...body },
         message: 'Inventory item updated successfully',
       },
       { status: 200 }
