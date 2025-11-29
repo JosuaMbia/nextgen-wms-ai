@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const warehouse = await warehouseService.createWarehouse(
       tenantId,
-      validatedData,
+      validatedData as any,
       userId
     );
 
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
     const warehouse = await warehouseService.updateWarehouse(
       tenantId,
       warehouseId,
-      validatedData,
+      validatedData as any,
       userId
     );
 
