@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Boxes, ZoomIn, ZoomOut, RotateCcw, Layers, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Boxes, ZoomIn, ZoomOut, RotateCcw, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface Zone {
   id: string;
