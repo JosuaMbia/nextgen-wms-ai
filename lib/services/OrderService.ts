@@ -135,7 +135,7 @@ class OrderService {
       return {
         id: newDoc.id,
         ...savedData,
-        orderDate: savedData.orderDate.toDate(),
+        orderDate: savedData?.orderDate.toDate(),
         createdAt: savedData.createdAt.toDate(),
         updatedAt: savedData.updatedAt.toDate(),
         confirmedDate: savedData.confirmedDate?.toDate(),
