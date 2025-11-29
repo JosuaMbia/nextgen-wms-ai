@@ -145,7 +145,7 @@ export function useOrders(options: UseOrdersOptions): UseOrdersResult {
       const statusHistory = order.statusHistory || [];
       statusHistory.push({
         status: newStatus,
-        timestamp: Timestamp.now(),
+        timestamp: Timestamp.now().toDate(),
         notes: notes || '',
         updatedBy: 'system'
       });
@@ -169,7 +169,7 @@ export function useOrders(options: UseOrdersOptions): UseOrdersResult {
             type: 'reserved',
             quantity: item.quantity,
             reason: `Order ${order.orderNumber} confirmed`,
-            timestamp: Timestamp.now(),
+            timestamp: Timestamp.now().toDate(),
             createdBy: 'system'
           });
         }
@@ -184,7 +184,7 @@ export function useOrders(options: UseOrdersOptions): UseOrdersResult {
             type: 'out',
             quantity: item.quantity,
             reason: `Order ${order.orderNumber} shipped`,
-            timestamp: Timestamp.now(),
+            timestamp: Timestamp.now().toDate(),
             createdBy: 'system'
           });
         }
@@ -199,7 +199,7 @@ export function useOrders(options: UseOrdersOptions): UseOrdersResult {
             type: 'in',
             quantity: item.quantity,
             reason: `Order ${order.orderNumber} cancelled - reservation released`,
-            timestamp: Timestamp.now(),
+            timestamp: Timestamp.now().toDate(),
             createdBy: 'system'
           });
         }
