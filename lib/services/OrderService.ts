@@ -138,10 +138,10 @@ class OrderService {
         orderDate: savedData?.orderDate.toDate(),
         createdAt: savedData?.createdAt.toDate(),
         updatedAt: savedData?.updatedAt.toDate(),
-        confirmedDate: savedData.confirmedDate?.toDate(),
-        shippedDate: savedData.shippedDate?.toDate(),
-        deliveredDate: savedData.deliveredDate?.toDate(),
-        cancelledDate: savedData.cancelledDate?.toDate(),
+        confirmedDate: savedData?.confirmedDate?.toDate(),
+        shippedDate: savedData?.shippedDate?.toDate(),
+        deliveredDate: savedData?.deliveredDate?.toDate(),
+        cancelledDate: savedData?.cancelledDate?.toDate(),
       } as Order;
     } catch (error) {
       console.error('Error creating order:', error);
