@@ -132,11 +132,9 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
   const addStock = async (productId: string, quantity: number, warehouseId: string, reason: string) => {
     try {
       // Update inventory item
-      const itemsRef = collection(db, 'tenants', tenantId, 'inventory');
       // Record stock movement
       const movementsRef = collection(db, 'tenants', tenantId, 'stockMovements');
       await addDoc(movementsRef, {
-        tenantId,
         productId,
         warehouseId,
         type: 'in',
