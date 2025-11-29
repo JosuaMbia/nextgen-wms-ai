@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, TrendingUp, TrendingDown, Package, ShoppingCart, DollarSign, Users, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BarChart3, TrendingDown, Package, ShoppingCart, DollarSign, Users, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export default function AnalyticsPage() {
   const kpis = [
