@@ -4,7 +4,8 @@ import { z } from 'zod';
 // GET /api/v1/inventory/[id] - Récupère un item d'inventaire spécifique
 export async function GET(
   request: NextRequest,
-  _: { params: { _id: string } }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  params: { params: { _id: string } }) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
     
@@ -39,7 +40,8 @@ export async function GET(
 // PUT /api/v1/inventory/[id] - Met à jour un item d'inventaire
 export async function PUT(
   request: NextRequest,
-  _: { params: { _id: string } }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  params: { params: { _id: string } }
 ) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
@@ -83,7 +85,8 @@ export async function PUT(
 // DELETE /api/v1/inventory/[id] - Supprime un item d'inventaire
 export async function DELETE(
   request: NextRequest,
-  _: { params: { _id: string } }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  params: { params: { _id: string } }
 ) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
