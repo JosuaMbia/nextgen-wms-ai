@@ -129,6 +129,8 @@ export function useOrders(options: UseOrdersOptions): UseOrdersResult {
         'pending': ['confirmed', 'cancelled'],
         'confirmed': ['processing', 'cancelled'],
         'processing': ['shipped', 'cancelled'],
+            'picking': ['packing', 'cancelled'],
+            'packing': ['shipped', 'cancelled'],
         'shipped': ['delivered', 'returned'],
         'delivered': ['returned'],
         'cancelled': [],
