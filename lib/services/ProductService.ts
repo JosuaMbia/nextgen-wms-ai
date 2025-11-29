@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 
 // Types
+export type ProductCategory = 'electronics' | 'clothing' | 'food' | 'beverages' | 'furniture' | 'tools' | 'raw_materials' | 'packaging' | 'other';
 export interface Product {
   id: string;
   tenantId: string;
