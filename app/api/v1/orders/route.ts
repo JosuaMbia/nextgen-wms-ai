@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  createOrder,
-  getOrders,
-  getOrderById,
-  updateOrderStatus,
-  cancelOrder,
-  getOrdersByCustomer,
-  getOrdersByStatus
-} from '@/lib/services/OrderService';
+import { orderService } from '@/lib/services/OrderService';
 
 // Order item schema
 const OrderItemSchema = z.object({
@@ -60,11 +52,11 @@ export async function GET(request: NextRequest) {
     let data;
 
     if (customerId) {
-      data = await getOrdersByCustomer(tenantId, customerId);
+      data = await orderService.getOrdersByCustomer(tenantId, customerId);
     } else if (status) {
-      data = await getOrdersByStatus(tenantId, status as any);
+      data = await orderService.getOrdersByStatus(tenantId, status as any);
     } else {
-      data = await getOrders(tenantId, warehouseId, status as any);
+      data = await orderService.getOrders(tenantId, warehouseId, status as any);
     }
 
     return NextResponse.json({
@@ -96,7 +88,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = OrderCreateSchema.parse(body);
 
-    const orderId = await createOrder(tenantId, validatedData as any, 'api-user');
+    const orderId = await orderService.createOrder(tenantId, validatedData as any, 'api-user');
 
     return NextResponse.json({
       success: true,
@@ -119,7 +111,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT /api/v1/orders/:id/status - Update order status
+// PUT /api/v1/orders - Update order status
 export async function PUT(request: NextRequest) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
@@ -146,7 +138,7 @@ export async function PUT(request: NextRequest) {
 
     if (action === 'cancel') {
       const { reason } = body;
-      await cancelOrder(tenantId, orderId, reason || 'Cancelled via API', 'api-user');
+      await orderService.cancelOrder(tenantId, orderId, reason || 'Cancelled via API', 'api-user');
       return NextResponse.json({
         success: true,
         message: 'Order cancelled successfully'
@@ -154,7 +146,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const { status, notes } = StatusUpdateSchema.parse(body);
-    await updateOrderStatus(tenantId, orderId, status, notes, 'api-user');
+    await orderService.updateOrderStatus(tenantId, orderId, status, notes, 'api-user');
 
     return NextResponse.json({
       success: true,
