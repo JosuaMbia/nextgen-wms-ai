@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import {
-  createProduct,
-  getProducts,
-  getProductById,
-  updateProduct,
-  deleteProduct,
-  searchProducts,
-  getProductsByCategory
-} from '@/lib/services/ProductService';
+import { productService } from '@/lib/services/ProductService';
 
 // Product schema
 const ProductCreateSchema = z.object({
@@ -16,53 +8,58 @@ const ProductCreateSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   category: z.string().min(1),
-  unit: z.enum(['piece', 'box', 'pallet', 'kg', 'liter', 'meter']),
-  price: z.number().min(0),
-  weight: z.number().min(0).optional(),
-  minStock: z.number().int().min(0).default(0),
-  maxStock: z.number().int().min(0).optional(),
-  reorderPoint: z.number().int().min(0).default(10),
-  status: z.enum(['active', 'inactive', 'discontinued']).default('active')
+  barcode: z.string().optional(),
+  brand: z.string().optional(),
+  manufacturer: z.string().optional(),
+  dimensions: z.object({
+    length: z.number().min(0),
+    width: z.number().min(0),
+    height: z.number().min(0),
+    unit: z.enum(['cm', 'in', 'm'])
+  }),
+  weight: z.object({
+    value: z.number().min(0),
+    unit: z.enum(['kg', 'lb', 'g'])
+  }),
+  pricing: z.object({
+    cost: z.number().min(0),
+    price: z.number().min(0),
+    currency: z.string().default('USD'),
+    taxRate: z.number().min(0).optional()
+  }),
+  images: z.array(z.string()).default([]),
+  status: z.enum(['active', 'inactive', 'discontinued']).default('active'),
+  tags: z.array(z.string()).default([]),
+  attributes: z.record(z.any()).default({})
 });
 
 const ProductUpdateSchema = ProductCreateSchema.partial();
 
-// GET /api/v1/products - List products with filters
+// GET /api/v1/products - List products
 export async function GET(request: NextRequest) {
   try {
-    const tenantId = request.headers.get('x-tenant-id');
+    const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
+    const { searchParams } = new URL(request.url);
+    
+    const filters = {
+      category: searchParams.get('category') || undefined,
+      status: searchParams.get('status') || undefined,
+      brand: searchParams.get('brand') || undefined,
+      search: searchParams.get('search') || undefined,
+      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
+    };
 
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: 'Tenant ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const search = searchParams.get('search');
-    const category = searchParams.get('category');
-    const status = searchParams.get('status');
-
-    let data;
-
-    if (search) {
-      data = await searchProducts(tenantId, search);
-    } else if (category) {
-      data = await getProductsByCategory(tenantId, category as any);
-    } else {
-      data = await getProducts(tenantId, status as any);
-    }
+    const products = await productService.listProducts(tenantId, filters);
 
     return NextResponse.json({
       success: true,
-      data,
-      count: data.length
+      data: products,
+      count: products.length
     });
   } catch (error) {
     console.error('Error in GET /api/v1/products:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -71,24 +68,17 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/products - Create product
 export async function POST(request: NextRequest) {
   try {
-    const tenantId = request.headers.get('x-tenant-id');
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: 'Tenant ID is required' },
-        { status: 400 }
-      );
-    }
-
+    const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
     const body = await request.json();
+    
     const validatedData = ProductCreateSchema.parse(body);
-
-    const productId = await createProduct(tenantId, validatedData as any, 'api-user');
+    
+    const product = await productService.createProduct(tenantId, validatedData as any, 'api-user');
 
     return NextResponse.json({
       success: true,
       message: 'Product created successfully',
-      data: { id: productId }
+      data: product
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -106,19 +96,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT /api/v1/products/:id - Update product
+// PUT /api/v1/products - Update product
 export async function PUT(request: NextRequest) {
   try {
-    const tenantId = request.headers.get('x-tenant-id');
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: 'Tenant ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const searchParams = request.nextUrl.searchParams;
+    const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
+    const { searchParams } = new URL(request.url);
     const productId = searchParams.get('id');
 
     if (!productId) {
@@ -130,12 +112,13 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = ProductUpdateSchema.parse(body);
-
-    await updateProduct(tenantId, productId, validatedData as any, 'api-user');
+    
+    const product = await productService.updateProduct(tenantId, productId, validatedData as any, 'api-user');
 
     return NextResponse.json({
       success: true,
-      message: 'Product updated successfully'
+      message: 'Product updated successfully',
+      data: product
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -153,19 +136,11 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/v1/products/:id - Delete product
+// DELETE /api/v1/products - Delete product
 export async function DELETE(request: NextRequest) {
   try {
-    const tenantId = request.headers.get('x-tenant-id');
-
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: 'Tenant ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const searchParams = request.nextUrl.searchParams;
+    const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
+    const { searchParams } = new URL(request.url);
     const productId = searchParams.get('id');
 
     if (!productId) {
@@ -175,7 +150,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await deleteProduct(tenantId, productId);
+    await productService.deleteProduct(tenantId, productId);
 
     return NextResponse.json({
       success: true,
