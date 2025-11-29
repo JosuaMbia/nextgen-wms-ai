@@ -1,37 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  createProduct,
+  getProducts,
+  getProductById,
+  updateProduct,
+  deleteProduct,
+  searchProducts,
+  getProductsByCategory
+} from '@/lib/services/ProductService';
 
-// Schema de validation pour un produit
-const productSchema = z.object({
-  sku: z.string().min(1, 'SKU is required').max(50, 'SKU must be less than 50 characters'),
-  name: z.string().min(1, 'Product name is required').max(200, 'Name must be less than 200 characters'),
+// Product schema
+const ProductCreateSchema = z.object({
+  sku: z.string().min(1),
+  name: z.string().min(1).max(200),
   description: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
+  category: z.string().min(1),
   unit: z.enum(['piece', 'box', 'pallet', 'kg', 'liter', 'meter']),
-  price: z.number().min(0, 'Price must be positive'),
-  weight: z.number().min(0, 'Weight must be positive').optional(),
-  dimensions: z.object({
-    length: z.number().min(0).optional(),
-    width: z.number().min(0).optional(),
-    height: z.number().min(0).optional(),
-  }).optional(),
-  minStock: z.number().int().min(0, 'Minimum stock must be positive').default(0),
-  maxStock: z.number().int().min(0, 'Maximum stock must be positive').optional(),
-  reorderPoint: z.number().int().min(0, 'Reorder point must be positive').default(10),
-  warehouseId: z.string().min(1, 'Warehouse ID is required'),
-  barcode: z.string().optional(),
-  imageUrl: z.string().url().optional().or(z.literal('')),
-  tags: z.array(z.string()).default([]),
-  active: z.boolean().default(true),
+  price: z.number().min(0),
+  weight: z.number().min(0).optional(),
+  minStock: z.number().int().min(0).default(0),
+  maxStock: z.number().int().min(0).optional(),
+  reorderPoint: z.number().int().min(0).default(10),
+  status: z.enum(['active', 'inactive', 'discontinued']).default('active')
 });
 
-// GET: Récupérer tous les produits pour un tenant
+const ProductUpdateSchema = ProductCreateSchema.partial();
+
+// GET /api/v1/products - List products with filters
 export async function GET(request: NextRequest) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID is required' },
@@ -39,58 +39,40 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Récupérer les paramètres de requête
-    const { searchParams } = new URL(request.url);
-    const warehouseId = searchParams.get('warehouseId');
+    const searchParams = request.nextUrl.searchParams;
+    const search = searchParams.get('search');
     const category = searchParams.get('category');
-    const active = searchParams.get('active');
+    const status = searchParams.get('status');
 
-    // Construire la requête Firestore
-    const productsRef = collection(db, 'products');
-    let q = query(productsRef, where('tenantId', '==', tenantId));
+    let data;
 
-    // Ajouter des filtres optionnels
-    if (warehouseId) {
-      q = query(q, where('warehouseId', '==', warehouseId));
-    }
-    if (category) {
-      q = query(q, where('category', '==', category));
-    }
-    if (active !== null) {
-      q = query(q, where('active', '==', active === 'true'));
+    if (search) {
+      data = await searchProducts(tenantId, search);
+    } else if (category) {
+      data = await getProductsByCategory(tenantId, category as any);
+    } else {
+      data = await getProducts(tenantId, status as any);
     }
 
-    const querySnapshot = await getDocs(q);
-    const products = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    return NextResponse.json(
-      {
-        success: true,
-        count: products.length,
-        data: products,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      success: true,
+      data,
+      count: data.length
+    });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Error in GET /api/v1/products:', error);
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-// POST: Créer un nouveau produit
+// POST /api/v1/products - Create product
 export async function POST(request: NextRequest) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID is required' },
@@ -99,72 +81,110 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
-    // Valider les données avec Zod
-    const validationResult = productSchema.safeParse(body);
-    
-    if (!validationResult.success) {
+    const validatedData = ProductCreateSchema.parse(body);
+
+    const productId = await createProduct(tenantId, validatedData as any, 'api-user');
+
+    return NextResponse.json({
+      success: true,
+      message: 'Product created successfully',
+      data: { id: productId }
+    }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        {
-          error: 'Validation failed',
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-          })),
-        },
+        { error: 'Validation failed', details: error.errors },
         { status: 400 }
       );
     }
 
-    const productData = validationResult.data;
-
-    // Vérifier si le SKU existe déjà pour ce tenant
-    const productsRef = collection(db, 'products');
-    const skuQuery = query(
-      productsRef,
-      where('tenantId', '==', tenantId),
-      where('sku', '==', productData.sku)
+    console.error('Error in POST /api/v1/products:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
     );
-    const existingProduct = await getDocs(skuQuery);
+  }
+}
 
-    if (!existingProduct.empty) {
+// PUT /api/v1/products/:id - Update product
+export async function PUT(request: NextRequest) {
+  try {
+    const tenantId = request.headers.get('x-tenant-id');
+
+    if (!tenantId) {
       return NextResponse.json(
-        { error: 'Product with this SKU already exists' },
-        { status: 409 }
+        { error: 'Tenant ID is required' },
+        { status: 400 }
       );
     }
 
-    // Créer le produit avec les métadonnées
-    const newProduct = {
-      ...productData,
-      tenantId,
-      currentStock: 0,
-      reservedStock: 0,
-      availableStock: 0,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    const searchParams = request.nextUrl.searchParams;
+    const productId = searchParams.get('id');
 
-    const docRef = await addDoc(productsRef, newProduct);
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Product created successfully',
-        data: {
-          id: docRef.id,
-          ...newProduct,
-        },
-      },
-      { status: 201 }
-    );
+    const body = await request.json();
+    const validatedData = ProductUpdateSchema.parse(body);
+
+    await updateProduct(tenantId, productId, validatedData as any, 'api-user');
+
+    return NextResponse.json({
+      success: true,
+      message: 'Product updated successfully'
+    });
   } catch (error) {
-    console.error('Error creating product:', error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    console.error('Error in PUT /api/v1/products:', error);
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/v1/products/:id - Delete product
+export async function DELETE(request: NextRequest) {
+  try {
+    const tenantId = request.headers.get('x-tenant-id');
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const productId = searchParams.get('id');
+
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await deleteProduct(tenantId, productId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in DELETE /api/v1/products:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
