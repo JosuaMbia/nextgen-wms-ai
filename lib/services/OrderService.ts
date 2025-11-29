@@ -18,7 +18,7 @@ import { inventoryService } from './InventoryService';
 
 // Types
 
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'picking' | 'packing' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'picking' | 'packing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
 export interface OrderItem {
   productId: string;
   sku: string;
