@@ -23,7 +23,7 @@ export interface UseWarehousesOptions {
 }
 
 export function useWarehouses(options: UseWarehousesOptions) {
-  const { tenantId, status, realtime = true } = options;
+  const { tenantId, status, _realtime = true } = options;
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
