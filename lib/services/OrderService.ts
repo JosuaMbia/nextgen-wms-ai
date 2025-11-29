@@ -13,7 +13,7 @@ import {
   Timestamp,
   QueryConstraint,
 } from 'firebase/firestore';
-import { inventoryService } from './InventoryService';
+import { InventoryService } from './InventoryService';
 
 // Types
 
@@ -88,6 +88,12 @@ export interface OrderStats {
 }
 
 class OrderService {
+  private inventoryService: InventoryService;
+
+  constructor() {
+    this.inventoryService = new InventoryService();
+  }
+  
   /**
    * Generate unique order number
    */
@@ -254,9 +260,18 @@ class OrderService {
         updatedBy: userId,
       };
 
-      // Update status-specific timestamps
+      // Update status-specific timestamps and inventory
       if (newStatus === 'confirmed') {
         updates.confirmedDate = Timestamp.now();
+        // Reserve inventory for the order
+        const order = await this.getOrder(tenantId, orderId);
+        if (order) {
+          for (const item of order.items) {
+            if (item.inventoryId) {
+              await this.inventoryService.reserveStock(tenantId, item.inventoryId, item.quantity, userId);
+            }
+          }
+        }
       } else if (newStatus === 'shipped') {
         updates.shippedDate = Timestamp.now();
       } else if (newStatus === 'delivered') {
@@ -268,7 +283,7 @@ class OrderService {
         if (order) {
           for (const item of order.items) {
             if (item.inventoryId) {
-              await inventoryService.releaseStock(tenantId, item.inventoryId, item.quantity, userId);
+              await this.inventoryService.releaseStock(tenantId, item.inventoryId, item.quantity, userId);
             }
           }
         }
@@ -304,7 +319,7 @@ class OrderService {
         totalOrders++;
 
         if (data.status === 'pending') pendingOrders++;
-        if (data.status === 'processing' || data.status === 'picking' || data.status === 'packing') processingOrders++;
+        if (data.status === 'processing' || data.status === 'picking' || data.tatus === 'packing') processingOrders++;
         if (data.status === 'shipped') shippedOrders++;
         if (data.status === 'delivered') deliveredOrders++;
         if (data.status === 'cancelled') cancelledOrders++;

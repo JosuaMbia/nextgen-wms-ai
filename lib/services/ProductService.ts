@@ -112,6 +112,10 @@ class ProductService {
       const newDoc = await getDoc(docRef);
       const savedData = newDoc.data();
 
+      if (!savedData) {
+        throw new Error('Failed to create product: could not retrieve saved data.');
+      }
+
       return {
         id: newDoc.id,
         ...savedData,

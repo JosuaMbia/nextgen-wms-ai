@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { 
-  getInventoryItems,
-  addStock,
-  removeStock,
-  transferStock,
-  getStockMovements,
-  getInventoryByWarehouse,
-  getInventoryByProduct,
-  getLowStockItems
-} from '@/lib/services/InventoryService';
+import { InventoryService } from '@/lib/services/InventoryService';
+
+const inventoryService = new InventoryService();
 
 // Validation schema for inventory operations
 const StockOperationSchema = z.object({
@@ -48,19 +41,19 @@ export async function GET(request: NextRequest) {
 
     if (movements) {
       // Get stock movements
-      data = await getStockMovements(tenantId, warehouseId, productId);
+      data = await inventoryService.getStockMovements(tenantId, warehouseId, productId);
     } else if (lowStockOnly) {
       // Get low stock items
-      data = await getLowStockItems(tenantId, warehouseId);
+      data = await inventoryService.getLowStockItems(tenantId, warehouseId);
     } else if (warehouseId) {
       // Get inventory by warehouse
-      data = await getInventoryByWarehouse(tenantId, warehouseId);
+      data = await inventoryService.getInventoryByWarehouse(tenantId, warehouseId);
     } else if (productId) {
       // Get inventory by product
-      data = await getInventoryByProduct(tenantId, productId);
+      data = await inventoryService.getInventoryByProduct(tenantId, productId);
     } else {
       // Get all inventory items
-      data = await getInventoryItems(tenantId);
+      data = await inventoryService.getInventoryItems(tenantId);
     }
 
     return NextResponse.json({
@@ -104,7 +97,7 @@ export async function POST(request: NextRequest) {
     switch (operation) {
       case 'add':
         const addData = StockOperationSchema.parse(body);
-        result = await addStock(
+        result = await inventoryService.addStock(
           tenantId,
           addData.productId,
           addData.quantity,
@@ -116,7 +109,7 @@ export async function POST(request: NextRequest) {
 
       case 'remove':
         const removeData = StockOperationSchema.parse(body);
-        result = await removeStock(
+        result = await inventoryService.removeStock(
           tenantId,
           removeData.productId,
           removeData.quantity,
@@ -128,7 +121,7 @@ export async function POST(request: NextRequest) {
 
       case 'transfer':
         const transferData = StockTransferSchema.parse(body);
-        result = await transferStock(
+        result = await inventoryService.transferStock(
           tenantId,
           transferData.productId,
           transferData.quantity,

@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   query,
   where,
   onSnapshot,
-  addDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -15,7 +14,7 @@ import {
   QueryConstraint
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { InventoryItem, StockMovement } from '@/lib/services/InventoryService';
+import { InventoryService, InventoryItem, StockMovement } from '@/lib/services/InventoryService';
 
 export interface UseInventoryOptions {
   tenantId: string;
@@ -43,15 +42,15 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  const inventoryService = useMemo(() => new InventoryService(), []);
+
   // Real-time listener for inventory items
   useEffect(() => {
-    if (!realtime) return;
+    if (!realtime || !tenantId) return;
 
     try {
-      const constraints: QueryConstraint[] = [
-        where('tenantId', '==', tenantId),
-        orderBy('updatedAt', 'desc')
-      ];
+      const itemsRef = collection(db, 'tenants', tenantId, 'inventory');
+      const constraints: QueryConstraint[] = [orderBy('updatedAt', 'desc')];
 
       if (warehouseId) {
         constraints.push(where('warehouseId', '==', warehouseId));
@@ -60,7 +59,6 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
         constraints.push(where('productId', '==', productId));
       }
 
-      const itemsRef = collection(db, 'tenants', tenantId, 'inventory');
       const q = query(itemsRef, ...constraints);
 
       const unsubscribe = onSnapshot(
@@ -90,14 +88,12 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
 
   // Real-time listener for stock movements
   useEffect(() => {
-    if (!realtime) return;
+    if (!realtime || !tenantId) return;
 
     try {
-      const constraints: QueryConstraint[] = [
-        where('tenantId', '==', tenantId),
-        orderBy('timestamp', 'desc')
-      ];
-
+      const movementsRef = collection(db, 'tenants', tenantId, 'stock_movements');
+      const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+      
       if (warehouseId) {
         constraints.push(where('warehouseId', '==', warehouseId));
       }
@@ -105,7 +101,6 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
         constraints.push(where('productId', '==', productId));
       }
 
-      const movementsRef = collection(db, 'tenants', tenantId, 'stockMovements');
       const q = query(movementsRef, ...constraints);
 
       const unsubscribe = onSnapshot(
@@ -130,44 +125,12 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
 
   // Add stock function
   const addStock = async (productId: string, quantity: number, warehouseId: string, reason: string) => {
-    try {
-      // Update inventory item
-      // Record stock movement
-      const movementsRef = collection(db, 'tenants', tenantId, 'stockMovements');
-      await addDoc(movementsRef, {
-        productId,
-        warehouseId,
-        type: 'in',
-        quantity,
-        reason,
-        timestamp: Timestamp.now(),
-        createdBy: 'system'
-      });
-    } catch (err) {
-      console.error('Error adding stock:', err);
-      throw err;
-    }
+    await inventoryService.addStock(tenantId, productId, quantity, warehouseId, reason, 'hook-user');
   };
 
   // Remove stock function
   const removeStock = async (productId: string, quantity: number, warehouseId: string, reason: string) => {
-    try {
-      // Record stock movement
-      const movementsRef = collection(db, 'tenants', tenantId, 'stockMovements');
-      await addDoc(movementsRef, {
-        tenantId,
-        productId,
-        warehouseId,
-        type: 'out',
-        quantity,
-        reason,
-        timestamp: Timestamp.now(),
-        createdBy: 'system'
-      });
-    } catch (err) {
-      console.error('Error removing stock:', err);
-      throw err;
-    }
+    await inventoryService.removeStock(tenantId, productId, quantity, warehouseId, reason, 'hook-user');
   };
 
   // Transfer stock function
@@ -177,36 +140,7 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
     fromWarehouseId: string,
     toWarehouseId: string
   ) => {
-    try {
-      const movementsRef = collection(db, 'tenants', tenantId, 'stockMovements');
-      
-      // Record outbound movement
-      await addDoc(movementsRef, {
-        tenantId,
-        productId,
-        warehouseId: fromWarehouseId,
-        type: 'out',
-        quantity,
-        reason: `Transfer to warehouse ${toWarehouseId}`,
-        timestamp: Timestamp.now(),
-        createdBy: 'system'
-      });
-
-      // Record inbound movement
-      await addDoc(movementsRef, {
-        tenantId,
-        productId,
-        warehouseId: toWarehouseId,
-        type: 'in',
-        quantity,
-        reason: `Transfer from warehouse ${fromWarehouseId}`,
-        timestamp: Timestamp.now(),
-        createdBy: 'system'
-      });
-    } catch (err) {
-      console.error('Error transferring stock:', err);
-      throw err;
-    }
+    await inventoryService.transferStock(tenantId, productId, quantity, fromWarehouseId, toWarehouseId, 'hook-user');
   };
 
   // Update inventory item
