@@ -15,7 +15,6 @@ export async function GET(
       );
     }
 
-    const { _id } = params;
 
     // TODO: Implémenter la récupération via InventoryService
     return NextResponse.json(
@@ -52,7 +51,6 @@ export async function PUT(
       );
     }
 
-    const { _id } = params;
     const body = await request.json();
 
     // TODO: Implémenter la mise à jour via InventoryService
