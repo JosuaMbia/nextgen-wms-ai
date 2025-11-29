@@ -133,12 +133,6 @@ export function useInventory(options: UseInventoryOptions): UseInventoryResult {
     try {
       // Update inventory item
       const itemsRef = collection(db, 'tenants', tenantId, 'inventory');
-      const itemQuery = query(
-        itemsRef,
-        where('productId', '==', productId),
-        where('warehouseId', '==', warehouseId)
-      );
-      
       // Record stock movement
       const movementsRef = collection(db, 'tenants', tenantId, 'stockMovements');
       await addDoc(movementsRef, {
