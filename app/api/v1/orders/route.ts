@@ -11,10 +11,9 @@ const OrderItemSchema = z.object({
 
 // Order create schema
 const OrderCreateSchema = z.object({
-  orderNumber: z.string().min(1),
   customerId: z.string().min(1),
   customerName: z.string().min(1),
-  warehouseId: z.string().min(1),
+  customerEmail: z.string().email().optional(),
   items: z.array(OrderItemSchema).min(1),
   shippingAddress: z.object({
     street: z.string(),
@@ -23,12 +22,13 @@ const OrderCreateSchema = z.object({
     zipCode: z.string(),
     country: z.string()
   }),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
   notes: z.string().optional()
 });
 
 // Status update schema
 const StatusUpdateSchema = z.object({
-  status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']),
+  status: z.enum(['pending', 'confirmed', 'processing', 'picking', 'packing', 'shipped', 'delivered', 'cancelled']),
   notes: z.string().optional()
 });
 
@@ -48,16 +48,16 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('customerId');
     const status = searchParams.get('status');
     const warehouseId = searchParams.get('warehouseId');
+    const priority = searchParams.get('priority');
 
-    let data;
+    // Build filters for listOrders
+    const filters: Record<string, any> = {};
+    if (customerId) filters.customerId = customerId;
+    if (status) filters.status = status;
+    if (warehouseId) filters.warehouseId = warehouseId;
+    if (priority) filters.priority = priority;
 
-    if (customerId) {
-      data = await orderService.getOrdersByCustomer(tenantId, customerId);
-    } else if (status) {
-      data = await orderService.getOrdersByStatus(tenantId, status as any);
-    } else {
-      data = await orderService.getOrders(tenantId, warehouseId, status as any);
-    }
+    const data = await orderService.listOrders(tenantId, filters);
 
     return NextResponse.json({
       success: true,
@@ -88,12 +88,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = OrderCreateSchema.parse(body);
 
-    const orderId = await orderService.createOrder(tenantId, validatedData as any, 'api-user');
+    const order = await orderService.createOrder(tenantId, validatedData as any, 'api-user');
 
     return NextResponse.json({
       success: true,
       message: 'Order created successfully',
-      data: { id: orderId }
+      data: order
     }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -125,7 +125,6 @@ export async function PUT(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const orderId = searchParams.get('id');
-    const action = searchParams.get('action');
 
     if (!orderId) {
       return NextResponse.json(
@@ -135,22 +134,14 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    const { status } = StatusUpdateSchema.parse(body);
 
-    if (action === 'cancel') {
-      const { reason } = body;
-      await orderService.cancelOrder(tenantId, orderId, reason || 'Cancelled via API', 'api-user');
-      return NextResponse.json({
-        success: true,
-        message: 'Order cancelled successfully'
-      });
-    }
-
-    const { status, notes } = StatusUpdateSchema.parse(body);
-    await orderService.updateOrderStatus(tenantId, orderId, status, notes, 'api-user');
+    const order = await orderService.updateOrderStatus(tenantId, orderId, status, 'api-user');
 
     return NextResponse.json({
       success: true,
-      message: 'Order status updated successfully'
+      message: 'Order status updated successfully',
+      data: order
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
