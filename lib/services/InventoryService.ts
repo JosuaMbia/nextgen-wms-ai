@@ -6,14 +6,12 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   orderBy,
   limit,
   Timestamp,
   QueryConstraint,
-  increment,
 } from 'firebase/firestore';
 
 // Types
@@ -43,381 +41,402 @@ export interface InventoryItem {
   updatedBy: string;
 }
 
-export interface InventoryMovement {
+export interface StockMovement {
   id: string;
   tenantId: string;
-  inventoryId: string;
+  productId: string;
+  warehouseId: string;
   type: 'in' | 'out' | 'transfer' | 'adjustment';
   quantity: number;
   fromWarehouseId?: string;
   toWarehouseId?: string;
   reason: string;
   referenceId?: string;
-  referenceType?: 'order' | 'shipment' | 'return' | 'adjustment';
   createdAt: Date;
   createdBy: string;
 }
 
-export interface InventoryFilters {
-  warehouseId?: string;
-  productId?: string;
-  status?: string;
-  lowStock?: boolean;
-  search?: string;
-  limit?: number;
+// Helper to convert Firestore data
+const convertInventoryItem = (docSnap: any): InventoryItem => {
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    createdAt: data.createdAt?.toDate() || new Date(),
+    updatedAt: data.updatedAt?.toDate() || new Date(),
+    lastRestocked: data.lastRestocked?.toDate() || new Date(),
+  } as InventoryItem;
+};
+
+const convertMovement = (docSnap: any): StockMovement => {
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    createdAt: data.createdAt?.toDate() || new Date(),
+  } as StockMovement;
+};
+
+// Calculate status based on quantity
+const calculateStatus = (
+  quantity: number,
+  minLevel: number,
+  maxLevel: number
+): InventoryItem['status'] => {
+  if (quantity <= 0) return 'out_of_stock';
+  if (quantity <= minLevel) return 'low_stock';
+  if (quantity > maxLevel) return 'overstocked';
+  return 'in_stock';
+};
+
+/**
+ * Get all inventory items for a tenant
+ */
+export async function getInventoryItems(tenantId: string): Promise<InventoryItem[]> {
+  try {
+    const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
+    const q = query(inventoryCollection, orderBy('updatedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(convertInventoryItem);
+  } catch (error) {
+    console.error('Error getting inventory items:', error);
+    throw new Error('Failed to get inventory items');
+  }
 }
 
-export interface StockAlert {
-  inventoryId: string;
-  productId: string;
-  warehouseId: string;
-  currentStock: number;
-  threshold: number;
-  alertType: 'low_stock' | 'out_of_stock' | 'overstocked';
+/**
+ * Get inventory item by ID
+ */
+export async function getInventoryItemById(
+  tenantId: string,
+  inventoryId: string
+): Promise<InventoryItem | null> {
+  try {
+    const docRef = doc(db, 'tenants', tenantId, 'inventory', inventoryId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return null;
+    return convertInventoryItem(docSnap);
+  } catch (error) {
+    console.error('Error getting inventory item:', error);
+    throw new Error('Failed to get inventory item');
+  }
 }
 
-class InventoryService {
-  /**
-   * Create new inventory item
-   */
-  async createInventory(
-    tenantId: string,
-    data: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt' | 'availableQuantity' | 'status'>,
-    userId: string
-  ): Promise<InventoryItem> {
-    try {
-      const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
-      
-      const availableQuantity = data.quantity - data.reservedQuantity;
-      let status: InventoryItem['status'] = 'in_stock';
-      
-      if (availableQuantity === 0) {
-        status = 'out_of_stock';
-      } else if (availableQuantity <= data.minStockLevel) {
-        status = 'low_stock';
-      } else if (availableQuantity > data.maxStockLevel) {
-        status = 'overstocked';
-      }
+/**
+ * Get inventory by warehouse
+ */
+export async function getInventoryByWarehouse(
+  tenantId: string,
+  warehouseId: string
+): Promise<InventoryItem[]> {
+  try {
+    const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
+    const q = query(
+      inventoryCollection,
+      where('warehouseId', '==', warehouseId),
+      orderBy('updatedAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(convertInventoryItem);
+  } catch (error) {
+    console.error('Error getting inventory by warehouse:', error);
+    throw new Error('Failed to get inventory by warehouse');
+  }
+}
 
-      const inventoryData = {
-        ...data,
-        availableQuantity,
-        status,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+/**
+ * Get inventory by product
+ */
+export async function getInventoryByProduct(
+  tenantId: string,
+  productId: string
+): Promise<InventoryItem[]> {
+  try {
+    const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
+    const q = query(
+      inventoryCollection,
+      where('productId', '==', productId),
+      orderBy('updatedAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(convertInventoryItem);
+  } catch (error) {
+    console.error('Error getting inventory by product:', error);
+    throw new Error('Failed to get inventory by product');
+  }
+}
+
+/**
+ * Get low stock items
+ */
+export async function getLowStockItems(
+  tenantId: string,
+  warehouseId?: string | null
+): Promise<InventoryItem[]> {
+  try {
+    const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
+    const constraints: QueryConstraint[] = [
+      where('status', 'in', ['low_stock', 'out_of_stock']),
+    ];
+    if (warehouseId) {
+      constraints.push(where('warehouseId', '==', warehouseId));
+    }
+    constraints.push(orderBy('status'));
+    const q = query(inventoryCollection, ...constraints);
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(convertInventoryItem);
+  } catch (error) {
+    console.error('Error getting low stock items:', error);
+    throw new Error('Failed to get low stock items');
+  }
+}
+
+/**
+ * Add stock to inventory
+ */
+export async function addStock(
+  tenantId: string,
+  productId: string,
+  quantity: number,
+  warehouseId: string,
+  reason: string,
+  userId: string
+): Promise<InventoryItem> {
+  try {
+    const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
+    const q = query(
+      inventoryCollection,
+      where('productId', '==', productId),
+      where('warehouseId', '==', warehouseId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+
+    let inventoryId: string;
+
+    if (snapshot.empty) {
+      const newItem = {
+        tenantId,
+        productId,
+        warehouseId,
+        sku: `SKU-${productId}-${warehouseId}`,
+        quantity,
+        reservedQuantity: 0,
+        availableQuantity: quantity,
+        minStockLevel: 10,
+        maxStockLevel: 1000,
+        reorderPoint: 20,
+        location: { zone: 'A', aisle: '1', rack: '1', bin: '1' },
+        status: calculateStatus(quantity, 10, 1000),
         lastRestocked: Timestamp.now(),
-        createdBy: userId,
-        updatedBy: userId,
-      };
-
-      const docRef = await addDoc(inventoryCollection, inventoryData);
-      const newDoc = await getDoc(docRef);
-
-      return {
-        id: newDoc.id,
-        ...inventoryData,
-        createdAt: inventoryData.createdAt.toDate(),
-        updatedAt: inventoryData.updatedAt.toDate(),
-        lastRestocked: inventoryData.lastRestocked.toDate(),
-      } as InventoryItem;
-    } catch (error) {
-      console.error('Error creating inventory:', error);
-      throw new Error('Failed to create inventory');
-    }
-  }
-
-  /**
-   * Get inventory item by ID
-   */
-  async getInventory(tenantId: string, inventoryId: string): Promise<InventoryItem | null> {
-    try {
-      const docRef = doc(db, 'tenants', tenantId, 'inventory', inventoryId);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        return null;
-      }
-
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
-        lastRestocked: data.lastRestocked.toDate(),
-      } as InventoryItem;
-    } catch (error) {
-      console.error('Error getting inventory:', error);
-      throw new Error('Failed to get inventory');
-    }
-  }
-
-  /**
-   * List inventory items with filters
-   */
-  async listInventory(tenantId: string, filters: InventoryFilters = {}): Promise<InventoryItem[]> {
-    try {
-      const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
-      const constraints: QueryConstraint[] = [];
-
-      if (filters.warehouseId) {
-        constraints.push(where('warehouseId', '==', filters.warehouseId));
-      }
-
-      if (filters.productId) {
-        constraints.push(where('productId', '==', filters.productId));
-      }
-
-      if (filters.status) {
-        constraints.push(where('status', '==', filters.status));
-      }
-
-      if (filters.lowStock) {
-        constraints.push(where('status', 'in', ['low_stock', 'out_of_stock']));
-      }
-
-      if (filters.search) {
-        constraints.push(where('sku', '>=', filters.search));
-        constraints.push(where('sku', '<=', filters.search + '\uf8ff'));
-      }
-
-      constraints.push(orderBy('updatedAt', 'desc'));
-
-      if (filters.limit) {
-        constraints.push(limit(filters.limit));
-      }
-
-      const q = query(inventoryCollection, ...constraints);
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt.toDate(),
-          updatedAt: data.updatedAt.toDate(),
-          lastRestocked: data.lastRestocked.toDate(),
-        } as InventoryItem;
-      });
-    } catch (error) {
-      console.error('Error listing inventory:', error);
-      throw new Error('Failed to list inventory');
-    }
-  }
-
-  /**
-   * Update stock quantity
-   */
-  async updateStock(
-    tenantId: string,
-    inventoryId: string,
-    quantityChange: number,
-    userId: string
-  ): Promise<InventoryItem> {
-    try {
-      const docRef = doc(db, 'tenants', tenantId, 'inventory', inventoryId);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        throw new Error('Inventory item not found');
-      }
-
-      const currentData = docSnap.data();
-      const newQuantity = currentData.quantity + quantityChange;
-      const newAvailableQuantity = newQuantity - currentData.reservedQuantity;
-
-      let status: InventoryItem['status'] = 'in_stock';
-      if (newAvailableQuantity === 0) {
-        status = 'out_of_stock';
-      } else if (newAvailableQuantity <= currentData.minStockLevel) {
-        status = 'low_stock';
-      } else if (newAvailableQuantity > currentData.maxStockLevel) {
-        status = 'overstocked';
-      }
-
-      await updateDoc(docRef, {
-        quantity: newQuantity,
-        availableQuantity: newAvailableQuantity,
-        status,
-        lastRestocked: quantityChange > 0 ? Timestamp.now() : currentData.lastRestocked,
-        updatedAt: Timestamp.now(),
-        updatedBy: userId,
-      });
-
-      return await this.getInventory(tenantId, inventoryId) as InventoryItem;
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      throw new Error('Failed to update stock');
-    }
-  }
-
-  /**
-   * Record inventory movement
-   */
-  async recordMovement(
-    tenantId: string,
-    data: Omit<InventoryMovement, 'id' | 'createdAt'>,
-    userId: string
-  ): Promise<InventoryMovement> {
-    try {
-      const movementsCollection = collection(db, 'tenants', tenantId, 'inventory_movements');
-
-      const movementData = {
-        ...data,
         createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
         createdBy: userId,
+        updatedBy: userId,
       };
+      const docRef = await addDoc(inventoryCollection, newItem);
+      inventoryId = docRef.id;
+    } else {
+      const existingDoc = snapshot.docs[0];
+      inventoryId = existingDoc.id;
+      const existingData = existingDoc.data();
+      const newQuantity = existingData.quantity + quantity;
+      const newAvailable = existingData.availableQuantity + quantity;
 
-      const docRef = await addDoc(movementsCollection, movementData);
-      const newDoc = await getDoc(docRef);
-      const savedData = newDoc.data();
-
-      // Update inventory quantity based on movement type
-      if (data.type === 'in') {
-        await this.updateStock(tenantId, data.inventoryId, data.quantity, userId);
-      } else if (data.type === 'out' || data.type === 'adjustment') {
-        await this.updateStock(tenantId, data.inventoryId, -data.quantity, userId);
-      }
-
-      return {
-        id: newDoc.id,
-        ...savedData,
-        createdAt: savedData.createdAt.toDate(),
-      } as InventoryMovement;
-    } catch (error) {
-      console.error('Error recording movement:', error);
-      throw new Error('Failed to record movement');
-    }
-  }
-
-  /**
-   * Get stock alerts
-   */
-  async getStockAlerts(tenantId: string): Promise<StockAlert[]> {
-    try {
-      const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
-      const constraints: QueryConstraint[] = [
-        where('status', 'in', ['low_stock', 'out_of_stock', 'overstocked']),
-        orderBy('status'),
-      ];
-
-      const q = query(inventoryCollection, ...constraints);
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        let alertType: StockAlert['alertType'] = 'low_stock';
-        let threshold = data.minStockLevel;
-
-        if (data.status === 'out_of_stock') {
-          alertType = 'out_of_stock';
-          threshold = 0;
-        } else if (data.status === 'overstocked') {
-          alertType = 'overstocked';
-          threshold = data.maxStockLevel;
-        }
-
-        return {
-          inventoryId: doc.id,
-          productId: data.productId,
-          warehouseId: data.warehouseId,
-          currentStock: data.availableQuantity,
-          threshold,
-          alertType,
-        };
-      });
-    } catch (error) {
-      console.error('Error getting stock alerts:', error);
-      throw new Error('Failed to get stock alerts');
-    }
-  }
-
-  /**
-   * Get inventory movements history
-   */
-  async getMovementHistory(
-    tenantId: string,
-    inventoryId: string,
-    limitCount: number = 50
-  ): Promise<InventoryMovement[]> {
-    try {
-      const movementsCollection = collection(db, 'tenants', tenantId, 'inventory_movements');
-      const constraints: QueryConstraint[] = [
-        where('inventoryId', '==', inventoryId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount),
-      ];
-
-      const q = query(movementsCollection, ...constraints);
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt.toDate(),
-        } as InventoryMovement;
-      });
-    } catch (error) {
-      console.error('Error getting movement history:', error);
-      throw new Error('Failed to get movement history');
-    }
-  }
-
-  /**
-   * Reserve inventory quantity
-   */
-  async reserveStock(
-    tenantId: string,
-    inventoryId: string,
-    quantity: number,
-    userId: string
-  ): Promise<InventoryItem> {
-    try {
-      const docRef = doc(db, 'tenants', tenantId, 'inventory', inventoryId);
-
-      await updateDoc(docRef, {
-        reservedQuantity: increment(quantity),
-        availableQuantity: increment(-quantity),
+      await updateDoc(doc(db, 'tenants', tenantId, 'inventory', inventoryId), {
+        quantity: newQuantity,
+        availableQuantity: newAvailable,
+        status: calculateStatus(newAvailable, existingData.minStockLevel, existingData.maxStockLevel),
+        lastRestocked: Timestamp.now(),
         updatedAt: Timestamp.now(),
         updatedBy: userId,
       });
-
-      return await this.getInventory(tenantId, inventoryId) as InventoryItem;
-    } catch (error) {
-      console.error('Error reserving stock:', error);
-      throw new Error('Failed to reserve stock');
     }
-  }
 
-  /**
-   * Release reserved inventory
-   */
-  async releaseStock(
-    tenantId: string,
-    inventoryId: string,
-    quantity: number,
-    userId: string
-  ): Promise<InventoryItem> {
-    try {
-      const docRef = doc(db, 'tenants', tenantId, 'inventory', inventoryId);
+    await recordMovement(tenantId, {
+      productId,
+      warehouseId,
+      type: 'in',
+      quantity,
+      reason,
+      createdBy: userId,
+    });
 
-      await updateDoc(docRef, {
-        reservedQuantity: increment(-quantity),
-        availableQuantity: increment(quantity),
-        updatedAt: Timestamp.now(),
-        updatedBy: userId,
-      });
-
-      return await this.getInventory(tenantId, inventoryId) as InventoryItem;
-    } catch (error) {
-      console.error('Error releasing stock:', error);
-      throw new Error('Failed to release stock');
-    }
+    return (await getInventoryItemById(tenantId, inventoryId))!;
+  } catch (error) {
+    console.error('Error adding stock:', error);
+    throw new Error('Failed to add stock');
   }
 }
 
-// Export singleton instance
-export const inventoryService = new InventoryService();
+/**
+ * Remove stock from inventory
+ */
+export async function removeStock(
+  tenantId: string,
+  productId: string,
+  quantity: number,
+  warehouseId: string,
+  reason: string,
+  userId: string
+): Promise<InventoryItem> {
+  try {
+    const inventoryCollection = collection(db, 'tenants', tenantId, 'inventory');
+    const q = query(
+      inventoryCollection,
+      where('productId', '==', productId),
+      where('warehouseId', '==', warehouseId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      throw new Error('Inventory item not found');
+    }
+
+    const existingDoc = snapshot.docs[0];
+    const inventoryId = existingDoc.id;
+    const existingData = existingDoc.data();
+
+    if (existingData.availableQuantity < quantity) {
+      throw new Error('Insufficient stock available');
+    }
+
+    const newQuantity = existingData.quantity - quantity;
+    const newAvailable = existingData.availableQuantity - quantity;
+
+    await updateDoc(doc(db, 'tenants', tenantId, 'inventory', inventoryId), {
+      quantity: newQuantity,
+      availableQuantity: newAvailable,
+      status: calculateStatus(newAvailable, existingData.minStockLevel, existingData.maxStockLevel),
+      updatedAt: Timestamp.now(),
+      updatedBy: userId,
+    });
+
+    await recordMovement(tenantId, {
+      productId,
+      warehouseId,
+      type: 'out',
+      quantity,
+      reason,
+      createdBy: userId,
+    });
+
+    return (await getInventoryItemById(tenantId, inventoryId))!;
+  } catch (error) {
+    console.error('Error removing stock:', error);
+    throw error;
+  }
+}
+
+/**
+ * Transfer stock between warehouses
+ */
+export async function transferStock(
+  tenantId: string,
+  productId: string,
+  quantity: number,
+  fromWarehouseId: string,
+  toWarehouseId: string,
+  userId: string
+): Promise<{ from: InventoryItem; to: InventoryItem }> {
+  try {
+    const fromItem = await removeStock(
+      tenantId,
+      productId,
+      quantity,
+      fromWarehouseId,
+      `Transfer to warehouse ${toWarehouseId}`,
+      userId
+    );
+
+    const toItem = await addStock(
+      tenantId,
+      productId,
+      quantity,
+      toWarehouseId,
+      `Transfer from warehouse ${fromWarehouseId}`,
+      userId
+    );
+
+    await recordMovement(tenantId, {
+      productId,
+      warehouseId: fromWarehouseId,
+      type: 'transfer',
+      quantity,
+      fromWarehouseId,
+      toWarehouseId,
+      reason: 'Stock transfer',
+      createdBy: userId,
+    });
+
+    return { from: fromItem, to: toItem };
+  } catch (error) {
+    console.error('Error transferring stock:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get stock movements
+ */
+export async function getStockMovements(
+  tenantId: string,
+  warehouseId?: string | null,
+  productId?: string | null
+): Promise<StockMovement[]> {
+  try {
+    const movementsCollection = collection(db, 'tenants', tenantId, 'stock_movements');
+    const constraints: QueryConstraint[] = [];
+
+    if (warehouseId) {
+      constraints.push(where('warehouseId', '==', warehouseId));
+    }
+    if (productId) {
+      constraints.push(where('productId', '==', productId));
+    }
+    constraints.push(orderBy('createdAt', 'desc'));
+    constraints.push(limit(100));
+
+    const q = query(movementsCollection, ...constraints);
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(convertMovement);
+  } catch (error) {
+    console.error('Error getting stock movements:', error);
+    throw new Error('Failed to get stock movements');
+  }
+}
+
+/**
+ * Record a stock movement
+ */
+async function recordMovement(
+  tenantId: string,
+  data: Omit<StockMovement, 'id' | 'tenantId' | 'createdAt'>
+): Promise<void> {
+  try {
+    const movementsCollection = collection(db, 'tenants', tenantId, 'stock_movements');
+    await addDoc(movementsCollection, {
+      ...data,
+      tenantId,
+      createdAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error recording movement:', error);
+  }
+}
+
+// Export class instance for backward compatibility
+class InventoryServiceClass {
+  getInventoryItems = getInventoryItems;
+  getInventoryItemById = getInventoryItemById;
+  getInventoryByWarehouse = getInventoryByWarehouse;
+  getInventoryByProduct = getInventoryByProduct;
+  getLowStockItems = getLowStockItems;
+  addStock = addStock;
+  removeStock = removeStock;
+  transferStock = transferStock;
+  getStockMovements = getStockMovements;
+}
+
+export const inventoryService = new InventoryServiceClass();
