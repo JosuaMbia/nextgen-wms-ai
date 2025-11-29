@@ -20,7 +20,7 @@ export async function GET(
     return NextResponse.json(
       { 
         success: true,
-        data: { id, message: 'Inventory item endpoint ready' },
+        data: { message: 'Inventory item endpoint ready' },
       },
       { status: 200 }
     );
@@ -57,7 +57,7 @@ export async function PUT(
     return NextResponse.json(
       { 
         success: true,
-        data: { id, ...body },
+        data: { ...body },
         message: 'Inventory item updated successfully',
       },
       { status: 200 }
