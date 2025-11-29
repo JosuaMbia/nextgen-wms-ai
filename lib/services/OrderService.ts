@@ -45,7 +45,7 @@ export interface Order {
     country: string;
   };
   items: OrderItem[];
-  status: 'pending' | 'confirmed' | 'processing' | 'picking' | 'packing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'processing' | 'picking' | 'packing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
   priority: 'low' | 'normal' | 'high' | 'urgent';
   totalAmount: number;
   currency: string;
@@ -62,6 +62,7 @@ export interface Order {
   updatedAt: Date;
   createdBy: string;
   updatedBy: string;
+    statusHistory?: Array<{status: OrderStatus; timestamp: Date; notes?: string; updatedBy: string}>;
 }
 
 export interface OrderFilters {
