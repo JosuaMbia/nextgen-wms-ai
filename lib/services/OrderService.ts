@@ -50,6 +50,7 @@ export interface Order {
   totalAmount: number;
   currency: string;
   notes?: string;
+    warehouseId?: string;
   trackingNumber?: string;
   carrierService?: string;
   assignedWarehouseId?: string;
