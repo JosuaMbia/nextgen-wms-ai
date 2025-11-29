@@ -49,7 +49,7 @@ export function useWarehouses(options: UseWarehousesOptions) {
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
-        })) as Warehouse[];
+        })) as unknown as Warehouse[];
         
         setWarehouses(data);
         setLoading(false);
