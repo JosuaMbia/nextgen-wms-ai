@@ -6,13 +6,13 @@ const nextConfig = {
       'lh3.googleusercontent.com'
     ],
   },
-  experimental: {
-      eslint: {
+  eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
     serverActions: { enabled: true },
   },
   webpack: (config) => {
