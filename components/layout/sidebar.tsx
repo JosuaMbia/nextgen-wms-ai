@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Warehouse, Package, ClipboardList, BarChart3, Settings, Cpu, Box } from 'lucide-react';
-
+import { Home, Warehouse, Package, ClipboardList, BarChart3, Settings, Cpu, Box, Upload } from 'lucide-react';
 export const navigation = [
   {
     name: 'Dashboard',
