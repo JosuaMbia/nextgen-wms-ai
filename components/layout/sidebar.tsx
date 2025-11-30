@@ -31,7 +31,7 @@ export const navigation = [
   {
     name: 'Picking',
     href: '/dashboard/picking',
-    icon: MapPin,
+    icon: Package,
   },
   {
     name: 'Analytics',
