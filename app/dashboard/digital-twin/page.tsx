@@ -1,140 +1,261 @@
 'use client';
 
-import { useState } from 'react';
-import { Boxes, ZoomIn, ZoomOut, RotateCcw, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Package, TrendingUp, AlertTriangle, Activity, MapPin, BarChart3 } from 'lucide-react';
 
 interface Zone {
   id: string;
   name: string;
-  type: 'storage' | 'receiving' | 'shipping' | 'staging';
-  utilization: number;
-  temperature: number;
-  humidity: number;
-  status: 'normal' | 'warning' | 'alert';
+  type: 'storage' | 'receiving' | 'shipping' | 'picking' | 'staging' | 'quarantine';
+  capacity: number;
+  used: number;
+  temperature?: number;
+  humidity?: number;
   items: number;
+  status: 'normal' | 'warning' | 'alert';
 }
 
-const warehouseZones: Zone[] = [
-  { id: 'A1', name: 'Zone A - Electronics', type: 'storage', utilization: 85, temperature: 22, humidity: 45, status: 'normal', items: 2450 },
-  { id: 'A2', name: 'Zone A - Components', type: 'storage', utilization: 72, temperature: 21, humidity: 48, status: 'normal', items: 1830 },
-  { id: 'B1', name: 'Zone B - Heavy Equipment', type: 'storage', utilization: 95, temperature: 23, humidity: 42, status: 'warning', items: 450 },
-  { id: 'B2', name: 'Zone B - Machinery', type: 'storage', utilization: 68, temperature: 22, humidity: 44, status: 'normal', items: 320 },
-  { id: 'C1', name: 'Receiving Dock', type: 'receiving', utilization: 40, temperature: 24, humidity: 50, status: 'normal', items: 125 },
-  { id: 'C2', name: 'Shipping Dock', type: 'shipping', utilization: 55, temperature: 23, humidity: 48, status: 'normal', items: 230 },
-  { id: 'D1', name: 'Staging Area 1', type: 'staging', utilization: 78, temperature: 22, humidity: 46, status: 'normal', items: 580 },
-  { id: 'D2', name: 'Cold Storage', type: 'storage', utilization: 92, temperature: 4, humidity: 65, status: 'alert', items: 890 },
-];
-
 export default function DigitalTwinPage() {
+  const [zones, setZones] = useState<Zone[]>([
+    { id: 'Z1', name: 'Zone A - Electronics', type: 'storage', capacity: 1000, used: 850, temperature: 22, humidity: 45, items: 320, status: 'alert' },
+    { id: 'Z2', name: 'Zone B - Components', type: 'storage', capacity: 800, used: 480, temperature: 21, humidity: 42, items: 180, status: 'normal' },
+    { id: 'Z3', name: 'Zone C - Heavy Goods', type: 'storage', capacity: 1200, used: 420, temperature: 20, humidity: 50, items: 95, status: 'normal' },
+    { id: 'Z4', name: 'Receiving Dock', type: 'receiving', capacity: 500, used: 320, items: 45, status: 'warning' },
+    { id: 'Z5', name: 'Shipping Area 1', type: 'shipping', capacity: 600, used: 180, items: 28, status: 'normal' },
+    { id: 'Z6', name: 'Picking Zone', type: 'picking', capacity: 300, used: 240, items: 156, status: 'warning' },
+    { id: 'Z7', name: 'Staging Area', type: 'staging', capacity: 400, used: 85, items: 22, status: 'normal' },
+    { id: 'Z8', name: 'Quarantine', type: 'quarantine', capacity: 200, used: 45, items: 12, status: 'normal' },
+  ]);
+
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
-  const [zoom, setZoom] = useState(100);
+  const [liveUpdate, setLiveUpdate] = useState(true);
+
+  useEffect(() => {
+    if (!liveUpdate) return;
+    
+    const interval = setInterval(() => {
+      setZones(prev => prev.map(zone => ({
+        ...zone,
+        used: Math.max(0, Math.min(zone.capacity, zone.used + (Math.random() - 0.5) * 20)),
+        items: Math.max(0, zone.items + Math.floor((Math.random() - 0.5) * 5)),
+        temperature: zone.temperature ? zone.temperature + (Math.random() - 0.5) * 0.5 : undefined,
+        humidity: zone.humidity ? zone.humidity + (Math.random() - 0.5) * 2 : undefined,
+        status: (zone.used / zone.capacity > 0.8) ? 'alert' : (zone.used / zone.capacity > 0.6) ? 'warning' : 'normal'
+      })));
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [liveUpdate]);
 
   const getZoneColor = (zone: Zone) => {
-    if (zone.status === 'alert') return 'bg-red-500/30 border-red-500';
-    if (zone.status === 'warning') return 'bg-yellow-500/30 border-yellow-500';
-    if (zone.utilization > 85) return 'bg-orange-500/30 border-orange-500';
-    return 'bg-cyan-500/30 border-cyan-500';
+    const utilization = (zone.used / zone.capacity) * 100;
+    if (utilization > 80) return 'bg-red-500';
+    if (utilization > 60) return 'bg-yellow-500';
+    return 'bg-green-500';
   };
 
-  const getTypeColor = (type: string) => {
+  const getZoneBorderColor = (zone: Zone) => {
+    const utilization = (zone.used / zone.capacity) * 100;
+    if (utilization > 80) return 'border-red-500';
+    if (utilization > 60) return 'border-yellow-500';
+    return 'border-green-500';
+  };
+
+  const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'receiving': return 'bg-green-500';
-      case 'shipping': return 'bg-blue-500';
-      case 'staging': return 'bg-purple-500';
-      default: return 'bg-cyan-500';
+      case 'storage': return Package;
+      case 'receiving': return TrendingUp;
+      case 'shipping': return Activity;
+      case 'picking': return MapPin;
+      case 'staging': return BarChart3;
+      case 'quarantine': return AlertTriangle;
+      default: return Package;
     }
   };
 
+  const totalCapacity = zones.reduce((sum, z) => sum + z.capacity, 0);
+  const totalUsed = zones.reduce((sum, z) => sum + z.used, 0);
+  const totalItems = zones.reduce((sum, z) => sum + z.items, 0);
+  const utilizationRate = ((totalUsed / totalCapacity) * 100).toFixed(1);
+
   return (
-    <div className="flex h-[calc(100vh-120px)]">
-      {/* Main Visualization */}
-      <div className="flex-1 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Boxes className="h-7 w-7 text-cyan-400" />
-              Digital Twin - Warehouse View
-            </h1>
-            <p className="text-gray-400 mt-1">Real-time 3D visualization of warehouse operations</p>
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Digital Twin - Vue Entrepôt</h1>
+          <p className="text-slate-600 mt-1">Visualisation temps réel de votre entrepôt logistique</p>
+        </div>
+        <button
+          onClick={() => setLiveUpdate(!liveUpdate)}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            liveUpdate ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-700'
+          }`}
+        >
+          <Activity className={`h-4 w-4 inline mr-2 ${liveUpdate ? 'animate-pulse' : ''}`} />
+          {liveUpdate ? 'Live' : 'Paused'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600">Taux d'utilisation</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{utilizationRate}%</p>
+            </div>
+            <BarChart3 className="h-10 w-10 text-cyan-500" />
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setZoom(Math.max(50, zoom - 10))} className="p-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700"><ZoomOut className="h-5 w-5 text-gray-400" /></button>
-            <span className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">{zoom}%</span>
-            <button onClick={() => setZoom(Math.min(150, zoom + 10))} className="p-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700"><ZoomIn className="h-5 w-5 text-gray-400" /></button>
-            <button onClick={() => setZoom(100)} className="p-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700"><RotateCcw className="h-5 w-5 text-gray-400" /></button>
+          <div className="mt-3 w-full bg-slate-200 rounded-full h-2">
+            <div 
+              className={`h-2 rounded-full transition-all ${
+                parseFloat(utilizationRate) > 80 ? 'bg-red-500' : 
+                parseFloat(utilizationRate) > 60 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${utilizationRate}%` }}
+            />
           </div>
         </div>
 
-        {/* Warehouse Grid */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 h-[calc(100%-80px)] overflow-auto">
-          <div className="grid grid-cols-4 gap-4 min-h-[400px]" style={{ transform: `scale(${zoom/100})`, transformOrigin: 'top left' }}>
-            {warehouseZones.map((zone) => (
-              <div key={zone.id} onClick={() => setSelectedZone(zone)} className={`relative p-4 rounded-lg border-2 cursor-pointer transition-all hover:scale-105 ${getZoneColor(zone)} ${selectedZone?.id === zone.id ? 'ring-2 ring-white' : ''}`}>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-white font-bold">{zone.id}</span>
-                  <span className={`w-3 h-3 rounded-full ${zone.status === 'alert' ? 'bg-red-500 animate-pulse' : zone.status === 'warning' ? 'bg-yellow-500' : 'bg-green-500'}`} />
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600">Capacité totale</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{totalCapacity.toLocaleString()}</p>
+            </div>
+            <Package className="h-10 w-10 text-blue-500" />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">m² disponibles</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600">Espace utilisé</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{Math.round(totalUsed).toLocaleString()}</p>
+            </div>
+            <MapPin className="h-10 w-10 text-purple-500" />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">m² occupés</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600">Articles stockés</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{totalItems.toLocaleString()}</p>
+            </div>
+            <Activity className="h-10 w-10 text-green-500" />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">références actives</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
+        <h2 className="text-xl font-bold text-slate-900 mb-4">Plan de l'entrepôt</h2>
+        <div className="grid grid-cols-4 gap-4">
+          {zones.map((zone) => {
+            const Icon = getTypeIcon(zone.type);
+            const utilization = (zone.used / zone.capacity) * 100;
+            
+            return (
+              <button
+                key={zone.id}
+                onClick={() => setSelectedZone(zone)}
+                className={`p-4 rounded-lg border-2 transition-all hover:shadow-lg ${
+                  getZoneBorderColor(zone)
+                } ${
+                  selectedZone?.id === zone.id ? 'ring-4 ring-cyan-200' : ''
+                } bg-white`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <Icon className={`h-5 w-5 ${
+                    zone.status === 'alert' ? 'text-red-500' :
+                    zone.status === 'warning' ? 'text-yellow-500' : 'text-green-500'
+                  }`} />
+                  <span className="text-xs font-bold text-slate-600">{zone.id}</span>
                 </div>
-                <div className="text-gray-300 text-sm mb-2">{zone.name}</div>
-                <div className="space-y-1">
+                
+                <h3 className="font-semibold text-sm text-slate-900 mb-2 text-left">{zone.name}</h3>
+                
+                <div className="space-y-2">
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all ${getZoneColor(zone)}`}
+                      style={{ width: `${utilization}%` }}
+                    />
+                  </div>
+                  
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Utilization</span>
-                    <span className="text-white">{zone.utilization}%</span>
+                    <span className="text-slate-600">{utilization.toFixed(0)}%</span>
+                    <span className="text-slate-600">{zone.items} items</span>
                   </div>
-                  <div className="h-1.5 bg-slate-700 rounded-full">
-                    <div className={`h-full rounded-full ${zone.utilization > 90 ? 'bg-red-500' : zone.utilization > 75 ? 'bg-yellow-500' : 'bg-cyan-500'}`} style={{ width: `${zone.utilization}%` }} />
-                  </div>
+
+                  {zone.temperature && (
+                    <div className="text-xs text-slate-500">
+                      🌡️ {zone.temperature.toFixed(1)}°C | 💧 {zone.humidity?.toFixed(0)}%
+                    </div>
+                  )}
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <span className={`px-2 py-0.5 rounded text-xs text-white ${getTypeColor(zone.type)}`}>{zone.type}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Side Panel */}
-      <div className="w-80 border-l border-slate-700 p-4 space-y-4 overflow-y-auto">
-        <h3 className="text-lg font-semibold text-white">Zone Details</h3>
-        {selectedZone ? (
-          <div className="space-y-4">
-            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-xl font-bold text-white">{selectedZone.id}</span>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${selectedZone.status === 'alert' ? 'bg-red-500/20 text-red-400' : selectedZone.status === 'warning' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>{selectedZone.status}</span>
-              </div>
-              <div className="text-gray-300 mb-4">{selectedZone.name}</div>
-              <div className="space-y-3">
-                <div className="flex justify-between"><span className="text-gray-400">Items Stored</span><span className="text-white font-medium">{selectedZone.items.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Utilization</span><span className="text-white font-medium">{selectedZone.utilization}%</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Temperature</span><span className="text-white font-medium">{selectedZone.temperature}°C</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Humidity</span><span className="text-white font-medium">{selectedZone.humidity}%</span></div>
-              </div>
+      {selectedZone && (
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{selectedZone.name}</h2>
+              <p className="text-slate-600 text-sm mt-1">Zone {selectedZone.id} - Type: {selectedZone.type}</p>
             </div>
-            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-              <h4 className="text-white font-medium mb-2">Quick Actions</h4>
-              <div className="space-y-2">
-                <button className="w-full text-left px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-gray-300 text-sm">View Inventory</button>
-                <button className="w-full text-left px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-gray-300 text-sm">Check Activity Log</button>
-                <button className="w-full text-left px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-gray-300 text-sm">Adjust Settings</button>
-              </div>
+            <button
+              onClick={() => setSelectedZone(null)}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <p className="text-sm text-slate-600">Capacité</p>
+              <p className="text-2xl font-bold text-slate-900">{selectedZone.capacity} m²</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-slate-600">Utilisé</p>
+              <p className="text-2xl font-bold text-slate-900">{Math.round(selectedZone.used)} m²</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-slate-600">Articles</p>
+              <p className="text-2xl font-bold text-slate-900">{selectedZone.items}</p>
             </div>
           </div>
-        ) : (
-          <div className="text-gray-400 text-center py-8">Select a zone to view details</div>
-        )}
 
-        {/* Legend */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-          <h4 className="text-white font-medium mb-3">Legend</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500" /><span className="text-gray-300">Normal</span></div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-500" /><span className="text-gray-300">Warning</span></div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500" /><span className="text-gray-300">Alert</span></div>
+          {selectedZone.temperature && (
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 rounded-lg p-3">
+                <p className="text-sm text-slate-600">Température</p>
+                <p className="text-xl font-bold text-slate-900 mt-1">{selectedZone.temperature.toFixed(1)}°C</p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <p className="text-sm text-slate-600">Humidité</p>
+                <p className="text-xl font-bold text-slate-900 mt-1">{selectedZone.humidity?.toFixed(0)}%</p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 p-4 bg-cyan-50 rounded-lg border border-cyan-200">
+            <p className="text-sm text-cyan-900">
+              <strong>Statut:</strong> {
+                selectedZone.status === 'alert' ? '⚠️ Capacité critique - Réorganisation recommandée' :
+                selectedZone.status === 'warning' ? '⚡ Attention - Capacité élevée' :
+                '✅ Fonctionnement normal'
+              }
+            </p>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
