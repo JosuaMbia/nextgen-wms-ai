@@ -23,6 +23,16 @@ export const navigation = [
     href: '/dashboard/orders',
     icon: ClipboardList,
   },
+    {
+    name: 'Receiving',
+    href: '/dashboard/receiving',
+    icon: Package,
+  },
+  {
+    name: 'Picking',
+    href: '/dashboard/picking',
+    icon: MapPin,
+  },
   {
     name: 'Analytics',
     href: '/dashboard/analytics',
