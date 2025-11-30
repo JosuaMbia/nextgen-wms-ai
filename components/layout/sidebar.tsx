@@ -39,6 +39,11 @@ export const navigation = [
     href: '/dashboard/digital-twin',
     icon: Box,
   },
+    {
+    name: 'Import/Export',
+    href: '/dashboard/import',
+    icon: Upload,
+  },
   {
     name: 'Settings',
     href: '/dashboard/settings',
