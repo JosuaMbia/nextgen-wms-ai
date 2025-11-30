@@ -12,9 +12,9 @@ interface Message {
 
 const suggestions = [
   { icon: TrendingUp, text: 'Analyze inventory trends', prompt: 'Analyze the current inventory trends and identify any patterns' },
-  { icon: Package, text: 'Find low stock items', prompt: 'Show me all products that are below minimum stock levels' },
+  { icon: Package, text: 'Show low stock items', prompt: 'Show me all products that are below minimum stock levels' },
   { icon: AlertTriangle, text: 'Predict supply issues', prompt: 'Predict potential supply chain disruptions for next month' },
-  { icon: Zap, text: 'Optimize warehouse', prompt: 'Suggest optimizations for warehouse space utilization' },
+  { icon: Zap, text: 'Optimize warehouse', prompt: 'Suggest optimization strategies for warehouse space utilization' },
 ];
 
 export default function AICopilotPage() {
@@ -23,84 +23,148 @@ export default function AICopilotPage() {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(() => { scrollToBottom(); }, [messages]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  const handleSend = async (text?: string) => {
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = async (text: string) => {
     const messageText = text || input;
     if (!messageText.trim()) return;
 
     const userMessage: Message = { id: Date.now().toString(), role: 'user', content: messageText, timestamp: new Date() };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
 
     // Simulate AI response
     setTimeout(() => {
       const responses: Record<string, string> = {
-        'inventory': 'Based on my analysis of your inventory data:\n\n📊 **Current Status:**\n- Total SKUs: 12,847\n- Low stock items: 23 (require attention)\n- Overstock items: 8\n\n📈 **Trends:**\n- Electronics category showing 15% increase in demand\n- Q4 seasonal items need restocking\n\n💡 **Recommendations:**\n1. Reorder Industrial Sensor A1 within 5 days\n2. Consider promotions for overstock items\n3. Prepare for holiday season demand spike',
-        'low stock': 'I found **23 products** below minimum stock levels:\n\n🔴 **Critical (0-25% stock):**\n- Safety Gloves XL (0 units) - Main DC\n- Steel Bracket Type B (85/100 units) - North Hub\n\n🟡 **Warning (25-50% stock):**\n- Pneumatic Valve V5 (120/150 units)\n- Cable Assembly C12 (180/300 units)\n\n📋 **Recommended Actions:**\n1. Urgent reorder for Safety Gloves XL\n2. Schedule restocking for 5 other items this week',
-        'supply': 'Based on geopolitical analysis and supplier data:\n\n⚠️ **Potential Disruptions:**\n\n1. **Asian Electronics Supply** (Medium Risk)\n   - Shipping delays expected: 2-3 weeks\n   - Affected products: Sensors, Controllers\n\n2. **European Steel** (Low Risk)\n   - Minor price fluctuations expected\n   - Consider bulk ordering\n\n✅ **Mitigation Strategies:**\n- Diversify suppliers for critical components\n- Increase safety stock by 15%\n- Negotiate expedited shipping options',
-        'optimize': '🏭 **Warehouse Optimization Analysis:**\n\n**Current Utilization:** 78.3%\n\n📍 **Space Recommendations:**\n1. Zone A: Consolidate slow-moving items (-12% space)\n2. Zone B: Expand for high-turnover products (+8% space)\n3. Zone C: Implement vertical storage (+20% capacity)\n\n🚀 **Efficiency Gains:**\n- Estimated pick time reduction: 18%\n- Travel distance optimization: 25%\n- Projected cost savings: $45,000/year\n\nWould you like a detailed implementation plan?',
+        'inventory': 'Based on my analysis of your inventory data:\n\n📊 **Current Status:**\n- Total warehouses: 4\n- Active products: 12\n- Low stock items: 3 (requires attention!)\n\n⚠️ **Critical Insights:**\n- Warehouse WH-001 capacity at 85%\n- Organic Almonds stock critically low (20 units)\n- Premium Steel Containers inventory decreasing 15%/week\n\n💡 **Recommendations:**\n1. Reorder Organic Almonds immediately\n2. Allocate 200 sq ft additional space in WH-002\n3. Review procurement schedule for Electronics category',
+        'low stock': '🔴 **Low Stock Alert Report**\n\nI found **3 products** below minimum stock levels:\n\n1. **Organic Almonds** (P-002)\n   - Current: 20 units\n   - Minimum: 50 units\n   - Status: **CRITICAL**\n   - Action: Order 100 units immediately\n\n2. **Premium Steel Containers** (P-003)\n   - Current: 45 units\n   - Minimum: 75 units\n   - Status: **WARNING**\n   - Action: Schedule reorder within 3 days\n\n3. **Industrial Cleaning Agents** (P-007)\n   - Current: 12 units\n   - Minimum: 25 units\n   - Status: **WARNING**\n   - Action: Monitor and reorder if needed\n\n📈 **Total Value at Risk:** $12,345\n✅ **Automated POs:** 2 pending approval',
+        'supply': '🌐 **Supply Chain Forecast - Next 30 Days**\n\nBased on historical data and current trends:\n\n**HIGH RISK:**\n- Electronics category (China delays)\n- Organic products (seasonal availability)\n- Shipping delays expected: 2-3 days\n\n**MEDIUM RISK:**\n- Steel materials (price volatility)\n- Zone A capacity reaching limit\n\n**LOW RISK:**\n- General warehouse supplies\n- Local supplier products\n\n💡 **Proactive Recommendations:**\n1. Buffer stock: +15% for Electronics\n2. Alternative suppliers: Evaluate 2-3 options\n3. Pre-order organic items before season peak\n\n📊 **Confidence:** 87% (based on 18 months data)',
+        'optimize': '🎯 **Warehouse Optimization Strategy**\n\n**Current Utilization:**\n- Zone A (WH-001): 85% (⚠️ High)\n- Zone B (WH-002): 60% (✅ Optimal)\n- Zone C (WH-003): 40% (💡 Underutilized)\n\n**Recommendations:**\n\n1. **Immediate Actions:**\n   - Move 100 units from Zone A → Zone C\n   - Consolidate slow-moving items\n   - Implement vertical racking (+20% capacity)\n\n2. **Short-term (30 days):**\n   - ABC analysis reorganization\n   - Optimize picking routes (-15% time)\n   - Cross-docking for high-turnover SKUs\n\n3. **Long-term (90 days):**\n   - Automation feasibility study\n   - WMS integration with AI routing\n   - Digital twin implementation\n\n💰 **Expected Savings:** $25K/year\n⏱️ **Efficiency Gain:** +22%'
       };
 
-      let response = 'I\'d be happy to help with that! Based on your warehouse data, I can provide detailed analysis. Could you please specify what aspect you\'d like me to focus on?\n\nI can help with:\n- Inventory analysis and forecasting\n- Supply chain risk assessment\n- Warehouse optimization\n- Order fulfillment optimization';
-      
+      let responseContent = 'I\'m ready to help with your warehouse operations! You can ask me about:';
       for (const [key, value] of Object.entries(responses)) {
-        if (messageText.toLowerCase().includes(key)) { response = value; break; }
+        if (messageText.toLowerCase().includes(key)) {
+          responseContent = value;
+          break;
+        }
       }
 
-      const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: response, timestamp: new Date() };
-      setMessages(prev => [...prev, assistantMessage]);
+      const response: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: responseContent, timestamp: new Date() };
+      setMessages((prev) => [...prev, response]);
       setIsTyping(false);
-    }, 1500);
+    }, 2000);
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)]">
+    <div className="flex flex-col h-[calc(100vh-80px)] bg-slate-50">
       {/* Header */}
-      <div className="p-6 border-b border-slate-700">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Bot className="h-7 w-7 text-cyan-400" />
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
+        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <Bot className="h-7 w-7 text-cyan-500" />
           AI Copilot
         </h1>
-        <p className="text-gray-400 mt-1">Intelligent assistant for warehouse operations</p>
+        <p className="text-sm text-slate-600 mt-1">
+          Intelligent assistant for warehouse management - Powered by GPT-4
+        </p>
       </div>
 
-      {/* Quick Suggestions */}
-      <div className="p-4 border-b border-slate-700">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {suggestions.map((s, i) => (
-            <button key={i} onClick={() => handleSend(s.prompt)} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-lg text-sm text-gray-300 whitespace-nowrap">
-              <s.icon className="h-4 w-4 text-cyan-400" /> {s.text}
-            </button>
-          ))}
+      {/* Suggestions (only show when empty) */}
+      {messages.length === 1 && (
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-slate-600 font-medium">Try asking about:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {suggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(suggestion.prompt)}
+                className="flex items-start gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-cyan-500 hover:bg-cyan-50 transition-all text-left group"
+              >
+                <suggestion.icon className="h-5 w-5 text-cyan-600 mt-0.5 group-hover:text-cyan-700" />
+                <div>
+                  <div className="font-medium text-slate-900 group-hover:text-cyan-700">{suggestion.text}</div>
+                  <div className="text-xs text-slate-500 mt-1">{suggestion.prompt}</div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((m) => (
-          <div key={m.id} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : ''}`}>
-            {m.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5 text-cyan-400" /></div>}
-            <div className={`max-w-[70%] rounded-xl p-4 ${m.role === 'user' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-gray-100'}`}>
-              <div className="whitespace-pre-wrap text-sm">{m.content}</div>
-              <div className={`text-xs mt-2 ${m.role === 'user' ? 'text-cyan-200' : 'text-gray-500'}`}>{m.timestamp.toLocaleTimeString()}</div>
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex gap-3 max-w-[70%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${
+                msg.role === 'user' ? 'bg-cyan-500' : 'bg-slate-700'
+              }`}>
+                {msg.role === 'user' ? <User className="h-4 w-4 text-white" /> : <Bot className="h-4 w-4 text-white" />}
+              </div>
+              <div>
+                <div className={`rounded-lg px-4 py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-cyan-500 text-white'
+                    : 'bg-white text-slate-900 border border-slate-200'
+                }`}>
+                  <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                </div>
+                <div className="text-xs text-slate-500 mt-1 px-1">
+                  {msg.timestamp.toLocaleTimeString()}
+                </div>
+              </div>
             </div>
-            {m.role === 'user' && <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0"><User className="h-5 w-5 text-gray-400" /></div>}
           </div>
         ))}
-        {isTyping && <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center"><Bot className="h-5 w-5 text-cyan-400" /></div><div className="bg-slate-800 rounded-xl p-4"><div className="flex gap-1"><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" /><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}} /><span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}} /></div></div></div>}
+
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="flex gap-3 max-w-[70%]">
+              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center">
+                <Bot className="h-4 w-4 text-white animate-pulse" />
+              </div>
+              <div className="bg-white rounded-lg px-4 py-3 border border-slate-200">
+                <div className="flex gap-1">
+                  <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" />
+                  <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-slate-700">
+      <div className="bg-white border-t border-slate-200 p-4">
         <div className="flex gap-2">
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Ask me anything about your warehouse..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
-          <button onClick={() => handleSend()} disabled={!input.trim()} className="bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg"><Send className="h-5 w-5" /></button>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend(input)}
+            placeholder="Ask about warehouses, inventory, orders..."
+            className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:border-cyan-500"
+          />
+          <button
+            onClick={() => handleSend(input)}
+            disabled={isLoading || !input.trim()}
+            className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            <Send className="h-4 w-4" />
+            Send
+          </button>
         </div>
       </div>
     </div>
