@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parse } from 'csv-parse/sync';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
