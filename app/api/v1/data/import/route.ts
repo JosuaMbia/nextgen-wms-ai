@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import * as XLSX from 'xlsx';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -204,8 +205,34 @@ export async function POST(request: NextRequest) {
     }
     
     // 1. Lire et parser le fichier
-    const text = await file.text();
-    const records = parseCSV(text);
+// Déterminer le format du fichier
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    let records: Record<string, string>[] = [];
+
+    if (fileExt === 'csv') {
+      // Parse CSV
+      const text = await file.text();
+      records = parseCSV(text);
+    } else if (fileExt === 'xlsx' || fileExt === 'xls') {
+      // Parse Excel avec SheetJS
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: any[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+      
+      if (jsonData.length > 0) {
+        const headers = jsonData[0].map((h: any) => String(h || '').trim());
+        records = jsonData.slice(1).map(row => {
+          const record: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            record[header] = row[index] != null ? String(row[index]) : '';
+          });
+          return record;
+        }).filter(r => Object.keys(r).length > 0);
+      }
+    } else {
+      return NextResponse.json({ error: 'Format non supporté. Utilisez .xlsx, .xls ou .csv' }, { status: 400 });
+    }
     
     if (records.length === 0) {
       return NextResponse.json({ error: 'Fichier vide ou format invalide' }, { status: 400 });
