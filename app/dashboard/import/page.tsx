@@ -198,6 +198,7 @@ export default function ImportExportPage() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+
         setStatus({
           success: true,
           message: `✅ Export de ${dataType} réussi!`,
@@ -344,7 +345,3 @@ export default function ImportExportPage() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
-                  </div>
-
-                  <h4 className="text-sm font-medium text-slate-300
