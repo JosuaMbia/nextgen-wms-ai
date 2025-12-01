@@ -213,7 +213,10 @@ export async function POST(request: NextRequest) {
     
     // 2. Mapper les colonnes automatiquement avec l'IA
     const headers = Object.keys(records[0]);
-    const mapping = await mapColumnsWithAI(headers, importType);
+        const manualMapping = formData.get('mapping');
+    const mapping = manualMapping 
+      ? JSON.parse(manualMapping as string)
+      : await mapColumnsWithAI(headers, importType);
     
     // 3. Transformer les données selon le mapping
     const transformedData = transformData(records, mapping, importType);
