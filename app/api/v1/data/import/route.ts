@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import * as XLSX from 'xlsx';
-import { db } from '@/lib/firebase';
-import { collection, writeBatch, doc } from 'firebase/firestore';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -281,11 +279,9 @@ export async function POST(request: NextRequest) {
     if (result.data && result.data.length > 0) {
       try {
         const collectionName = importType; // 'articles' ou 'emplacements'
-        const batch = writeBatch(db);
-        
+      const batch = adminDb.batch();        
         result.data.forEach((item: any) => {
-          const docRef = doc(collection(db, collectionName));
-          batch.set(docRef, {
+        const docRef = adminDb.collection(collectionName).doc();          batch.set(docRef, {
             ...item,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
