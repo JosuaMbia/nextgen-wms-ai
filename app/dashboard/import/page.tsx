@@ -338,10 +338,4 @@ export default function ImportExportPage() {
                       </thead>
                       <tbody>
                         {previewData.map((row, rowIdx) => (
-                          <tr key={rowIdx} className="border-b border-slate-700">
-                            {detectedColumns.map((col, colIdx) => (
-                              <td key={colIdx} className="p-3 text-slate-400">{row[col] || '-'}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
+                          <tr key={rowIdx} className="border-b border-slate-700
