@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+// Force redeploy with all fixes
 import OpenAI from 'openai';
 import * as XLSX from 'xlsx';
 import { adminDb } from '@/lib/firebase-admin';
