@@ -8,6 +8,7 @@ interface ImportStatus {
   success: boolean;
   message: string;
   details?: string;
+    invalidRows?: Array<{ row: number; errors: string[] }>;
 }
 
 type TabType = 'import' | 'export';
@@ -507,6 +508,30 @@ const handleAnalyzeFile = async () => {
                   {status.details && (
                     <p className="text-sm mt-1 opacity-90">{status.details}</p>
                   )}
+                                )}
+
+              {/* Affichage des erreurs détaillées */}
+              {status.invalidRows && status.invalidRows.length > 0 && (
+                <div className="mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+                  <p className="font-semibold text-red-400 mb-3">
+                    ❌ {status.invalidRows.length} ligne(s) en erreur :
+                  </p>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {status.invalidRows.map((invalidRow, idx) => (
+                      <div key={idx} className="p-3 bg-slate-800/50 rounded border border-red-500/20">
+                        <p className="font-medium text-red-300 mb-1">
+                          Ligne {invalidRow.row} :
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-red-200/80 space-y-1">
+                          {invalidRow.errors.map((error, errorIdx) => (
+                            <li key={errorIdx}>{error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
                 </div>
               </div>
             </div>
