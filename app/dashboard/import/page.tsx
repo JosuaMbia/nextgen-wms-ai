@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Upload, Download, Check, AlertCircle, Loader, ArrowRight, ArrowLeft } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ImportStatus {
   success: boolean;
@@ -61,7 +62,7 @@ export default function ImportExportPage() {
     }
   };
 
-  const handleAnalyzeFile = async () => {
+const handleAnalyzeFile = async () => {
     if (!file) {
       setStatus({ success: false, message: 'Veuillez sélectionner un fichier' });
       return;
@@ -69,26 +70,60 @@ export default function ImportExportPage() {
 
     setLoading(true);
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length === 0) {
-        setStatus({ success: false, message: 'Fichier vide' });
+      let headers: string[] = [];
+      let rows: any[] = [];
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+
+      if (fileExt === 'csv') {
+        // Parse CSV
+        const text = await file.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        if (lines.length === 0) {
+          setStatus({ success: false, message: 'Fichier vide' });
+          setLoading(false);
+          return;
+        }
+        headers = lines[0].split(',').map(h => h.trim().replace(/\"/g, ''));
+        rows = lines.slice(1, 4);
+      } else if (fileExt === 'xlsx' || fileExt === 'xls') {
+        // Parse Excel with SheetJS
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData: any[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        
+        if (jsonData.length === 0) {
+          setStatus({ success: false, message: 'Fichier vide' });
+          setLoading(false);
+          return;
+        }
+        
+        headers = jsonData[0].map((h: any) => String(h || '').trim());
+        rows = jsonData.slice(1, 4);
+      } else {
+        setStatus({ success: false, message: 'Format non supporté. Utilisez .xlsx, .xls ou .csv' });
         setLoading(false);
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       setDetectedColumns(headers);
 
-      const preview = lines.slice(1, 4).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const row: any = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-        return row;
+      const preview = rows.map(row => {
+        const rowData: any = {};
+        if (Array.isArray(row)) {
+          headers.forEach((header, index) => {
+            rowData[header] = row[index] != null ? String(row[index]) : '';
+          });
+        } else if (typeof row === 'string') {
+          const values = row.split(',').map(v => v.trim().replace(/\"/g, ''));
+          headers.forEach((header, index) => {
+            rowData[header] = values[index] || '';
+          });
+        }
+        return rowData;
       });
+
       setPreviewData(preview);
 
       const initialMapping: Record<string, string> = {};
