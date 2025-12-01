@@ -5,131 +5,164 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Interfaces pour validation
-interface Article {
-  sku: string;
-  nom: string;
-  categorie: string;
-  prix: number;
-  poids: number;
-  dimensions: string;
-  datePeremption?: string;
-  dateStockage: string;
-  quantite: number;
-  fournisseur: string;
+// Parser CSV simple sans dépendance externe
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.split('\n').filter(line => line.trim());
+  if (lines.length === 0) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/\"/g, ''));
+  const records: Record<string, string>[] = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim().replace(/\"/g, ''));
+    const record: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      record[header] = values[index] || '';
+    });
+    records.push(record);
+  }
+  
+  return records;
 }
 
-interface Emplacement {
-  code: string;
-  zone: string;
-  niveau: 'sol' | 'hauteur' | 'picking';
-  capacite: number;
-  capaciteUtilisee: number;
-  temperature?: number;
-  humidite?: number;
-}
-
-interface ImportResult {
-  success: boolean;
-  totalRows: number;
-  validRows: number;
-  invalidRows: Array<{ row: number; errors: string[] }>;
-  aiAnalysis?: {
-    recommendations: string[];
-    riskAlerts: string[];
-    optimizations: string[];
+// Mapping automatique avec IA
+async function mapColumnsWithAI(headers: string[], targetType: string): Promise<Record<string, string>> {
+  const targetFields: Record<string, string[]> = {
+    articles: ['sku', 'nom', 'categorie', 'prix', 'poids', 'dimensions', 'datePeremption', 'dateStockage', 'quantite', 'fournisseur'],
+    emplacements: ['code', 'zone', 'niveau', 'capacite', 'capaciteUtilisee', 'temperature', 'humidite'],
+    entrepots: ['nom', 'adresse', 'ville', 'codePostal', 'pays', 'capaciteTotale']
   };
-  data?: any[];
+
+  const targetFieldsList = targetFields[targetType as keyof typeof targetFields] || [];
+  
+  const prompt = `Tu es un assistant IA expert en mapping de données.
+Mappe automatiquement ces colonnes d'un fichier importé vers les champs requis du système.
+
+Colonnes du fichier: ${JSON.stringify(headers)}
+Champs du système pour "${targetType}": ${JSON.stringify(targetFieldsList)}
+
+Règles:
+- Trouve la meilleure correspondance pour chaque champ du système
+- Ignore la casse et les accents
+- Accepte les synonymes (ex: "Référence" = "sku", "Produit" = "nom")
+- Si aucune correspondance, mets null
+
+Réponds UNIQUEMENT avec un JSON valide au format:
+{ "champSysteme": "colonneF fichier" }
+
+Exemple: { "sku": "Reference", "nom": "Designation" }`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+    });
+
+    const content = response.choices[0].message.content || '{}';
+    const jsonMatch = content.match(/\{[^}]+\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return {};
+  } catch (error) {
+    console.error('AI Mapping error:', error);
+    // Fallback: mapping simple par correspondance exacte
+    const mapping: Record<string, string> = {};
+    targetFieldsList.forEach(field => {
+      const match = headers.find(h => h.toLowerCase() === field.toLowerCase());
+      if (match) mapping[field] = match;
+    });
+    return mapping;
+  }
 }
 
-// Validation des articles avec logique FIFO/FEFO
-function validateAndEnrichArticle(row: any, rowIndex: number): { valid: Article | null; errors: string[] } {
+// Transformation des données mappées
+function transformData(records: Record<string, string>[], mapping: Record<string, string>, targetType: string): any[] {
+  return records.map(record => {
+    const transformed: any = {};
+    
+    Object.keys(mapping).forEach(targetField => {
+      const sourceField = mapping[targetField];
+      if (sourceField && record[sourceField] !== undefined) {
+        let value = record[sourceField];
+        
+        // Conversions de types automatiques
+        if (['prix', 'poids', 'capacite', 'capaciteUtilisee', 'temperature', 'humidite'].includes(targetField)) {
+          transformed[targetField] = parseFloat(value) || 0;
+        } else if (['quantite'].includes(targetField)) {
+          transformed[targetField] = parseInt(value) || 0;
+        } else {
+          transformed[targetField] = value;
+        }
+      }
+    });
+    
+    return transformed;
+  }).filter(item => Object.keys(item).length > 0);
+}
+
+// Validation avec logique métier
+interface ValidationResult {
+  valid: any | null;
+  errors: string[];
+}
+
+function validateArticle(row: any, index: number): ValidationResult {
   const errors: string[] = [];
   
-  // Validations obligatoires
-  if (!row.sku || row.sku.trim() === '') errors.push('SKU manquant');
-  if (!row.nom || row.nom.trim() === '') errors.push('Nom manquant');
+  if (!row.sku) errors.push('SKU manquant');
+  if (!row.nom) errors.push('Nom manquant');
   if (!row.categorie) errors.push('Catégorie manquante');
-  if (!row.prix || isNaN(parseFloat(row.prix))) errors.push('Prix invalide');
-  if (!row.quantite || isNaN(parseInt(row.quantite))) errors.push('Quantité invalide');
-  if (!row.dateStockage) errors.push('Date de stockage manquante');
-  
-  // Validation dates
-  const dateStockage = new Date(row.dateStockage);
-  if (isNaN(dateStockage.getTime())) errors.push('Date de stockage invalide (format: YYYY-MM-DD)');
-  
-  if (row.datePeremption) {
-    const datePeremption = new Date(row.datePeremption);
-    if (isNaN(datePeremption.getTime())) errors.push('Date de péremption invalide');
-  }
+  if (row.prix === undefined || isNaN(row.prix)) errors.push('Prix invalide');
+  if (row.quantite === undefined || isNaN(row.quantite)) errors.push('Quantité invalide');
   
   if (errors.length > 0) {
     return { valid: null, errors };
   }
   
-  // Déterminer stratégie FIFO/FEFO
-  const hasExpiry = !!row.datePeremption && row.datePeremption.trim() !== '';
-  
-  const article: Article = {
-    sku: row.sku.trim(),
-    nom: row.nom.trim(),
-    categorie: row.categorie.trim(),
-    prix: parseFloat(row.prix),
-    poids: parseFloat(row.poids || 0),
-    dimensions: row.dimensions || 'N/A',
-    datePeremption: hasExpiry ? row.datePeremption : undefined,
-    dateStockage: row.dateStockage,
-    quantite: parseInt(row.quantite),
-    fournisseur: row.fournisseur || 'Non spécifié',
-  };
-  
-  return { valid: article, errors: [] };
+  return { valid: row, errors: [] };
 }
 
-// Validation des emplacements
-function validateEmplacement(row: any, rowIndex: number): { valid: Emplacement | null; errors: string[] } {
+function validateEmplacement(row: any, index: number): ValidationResult {
   const errors: string[] = [];
   
   if (!row.code) errors.push('Code emplacement manquant');
   if (!row.zone) errors.push('Zone manquante');
-  if (!row.niveau || !['sol', 'hauteur', 'picking'].includes(row.niveau.toLowerCase())) 
+  if (!['sol', 'hauteur', 'picking'].includes(row.niveau?.toLowerCase())) {
     errors.push('Niveau invalide (sol/hauteur/picking)');
-  if (!row.capacite || isNaN(parseFloat(row.capacite))) errors.push('Capacité invalide');
+  }
+  if (row.capacite === undefined || isNaN(row.capacite)) errors.push('Capacité invalide');
   
   if (errors.length > 0) {
     return { valid: null, errors };
   }
   
-  const emplacement: Emplacement = {
-    code: row.code.trim(),
-    zone: row.zone.trim(),
-    niveau: row.niveau.toLowerCase() as 'sol' | 'hauteur' | 'picking',
-    capacite: parseFloat(row.capacite),
-    capaciteUtilisee: parseFloat(row.capaciteUtilisee || 0),
-    temperature: row.temperature ? parseFloat(row.temperature) : undefined,
-    humidite: row.humidite ? parseFloat(row.humidite) : undefined,
-  };
+  // Normaliser le niveau
+  row.niveau = row.niveau.toLowerCase();
   
-  return { valid: emplacement, errors: [] };
+  return { valid: row, errors: [] };
 }
 
-// IA: Analyser les données et fournir recommandations
-async function analyzeImportWithAI(data: any[], type: string): Promise<any> {
+// IA: Analyser et recommander
+async function analyzeImportWithAI(data: any[], type: string, mapping: Record<string, string>): Promise<any> {
   try {
     const summary = {
       type,
       count: data.length,
-      sample: data.slice(0, 3),
+      mapping,
+      sample: data.slice(0, 2),
     };
     
-    const aiPrompt = `Analyser ces données d'importation WMS et fournir:
+    const aiPrompt = `Analyse ces données WMS importées et fournis:
 1. Recommandations d'optimisation
 2. Risques identifiés
 3. Opportunités FIFO/FEFO
 
+Mapping utilisé: ${JSON.stringify(mapping)}
 Données: ${JSON.stringify(summary)}
 
-Répondre en JSON: { recommendations: [], riskAlerts: [], optimizations: [] }`;
+Réponds en JSON: { recommendations: [], riskAlerts: [], optimizations: [] }`;
     
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -160,60 +193,61 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const importType = formData.get('type') as string; // 'articles' | 'emplacements' | 'entrepots'
+    const importType = formData.get('type') as string;
     
     if (!file) {
       return NextResponse.json({ error: 'Fichier manquant' }, { status: 400 });
     }
     
     if (!importType) {
-      return NextResponse.json({ error: 'Type d\'import manquant' }, { status: 400 });
+      return NextResponse.json({ error: "Type d'import manquant" }, { status: 400 });
     }
     
+    // 1. Lire et parser le fichier
     const text = await file.text();
-    const records = parse(text, {
-      columns: true,
-      skip_empty_lines: true,
-    });
+    const records = parseCSV(text);
     
-    const result: ImportResult = {
+    if (records.length === 0) {
+      return NextResponse.json({ error: 'Fichier vide ou format invalide' }, { status: 400 });
+    }
+    
+    // 2. Mapper les colonnes automatiquement avec l'IA
+    const headers = Object.keys(records[0]);
+    const mapping = await mapColumnsWithAI(headers, importType);
+    
+    // 3. Transformer les données selon le mapping
+    const transformedData = transformData(records, mapping, importType);
+    
+    // 4. Valider les données
+    const result: any = {
       success: true,
-      totalRows: records.length,
+      totalRows: transformedData.length,
       validRows: 0,
       invalidRows: [],
+      mapping: mapping,
       data: [],
     };
     
-    // Traiter selon le type
-    if (importType === 'articles') {
-      records.forEach((row: any, index: number) => {
-        const { valid, errors } = validateAndEnrichArticle(row, index);
-        if (valid) {
-          result.validRows++;
-          result.data!.push(valid);
-        } else if (errors.length > 0) {
-          result.invalidRows.push({ row: index + 1, errors });
-        }
-      });
-    } else if (importType === 'emplacements') {
-      records.forEach((row: any, index: number) => {
-        const { valid, errors } = validateEmplacement(row, index);
-        if (valid) {
-          result.validRows++;
-          result.data!.push(valid);
-        } else if (errors.length > 0) {
-          result.invalidRows.push({ row: index + 1, errors });
-        }
-      });
-    }
+    const validateFn = importType === 'articles' ? validateArticle : validateEmplacement;
     
-    // IA: Analyser et enrichir
+    transformedData.forEach((row: any, index: number) => {
+      const { valid, errors } = validateFn(row, index);
+      if (valid) {
+        result.validRows++;
+        result.data.push(valid);
+      } else if (errors.length > 0) {
+        result.invalidRows.push({ row: index + 1, errors });
+      }
+    });
+    
+    // 5. Analyse IA
     if (result.data && result.data.length > 0) {
-      result.aiAnalysis = await analyzeImportWithAI(result.data, importType);
+      result.aiAnalysis = await analyzeImportWithAI(result.data, importType, mapping);
     }
     
     return NextResponse.json(result);
   } catch (error) {
+    console.error('Import error:', error);
     return NextResponse.json(
       { error: 'Erreur lors du traitement du fichier', details: (error as Error).message },
       { status: 500 }
