@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import * as XLSX from 'xlsx';
+import { db } from '@/lib/firebase';
+import { collection, writeBatch, doc } from 'firebase/firestore';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -273,6 +275,29 @@ export async function POST(request: NextRequest) {
     // 5. Analyse IA
     if (result.data && result.data.length > 0) {
       result.aiAnalysis = await analyzeImportWithAI(result.data, importType, mapping);
+    }
+
+        // 6. Sauvegarder les données valides en base de données
+    if (result.data && result.data.length > 0) {
+      try {
+        const collectionName = importType; // 'articles' ou 'emplacements'
+        const batch = writeBatch(db);
+        
+        result.data.forEach((item: any) => {
+          const docRef = doc(collection(db, collectionName));
+          batch.set(docRef, {
+            ...item,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        });
+        
+        await batch.commit();
+        console.log(`✅ ${result.data.length} ${importType} sauvegardés en Firebase`);
+      } catch (firebaseError) {
+        console.error('Erreur lors de la sauvegarde Firebase:', firebaseError);
+        // Continue sans bloquer - les données sont validées même si la sauvegarde échoue
+      }
     }
     
     return NextResponse.json(result);
