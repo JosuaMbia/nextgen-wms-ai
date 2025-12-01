@@ -339,3 +339,146 @@ export default function ImportExportPage() {
                       <tbody>
                         {previewData.map((row, rowIdx) => (
                           <tr key={rowIdx} className="border-b border-slate-700
+                            ">
+                            {detectedColumns.map((col, colIdx) => (
+                              <td key={colIdx} className="p-3 text-slate-400">{row[col] || '-'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 className="text-sm font-medium text-slate-300 mb-4">Configuration du mapping</h4>
+                  <div className="space-y-3">
+                    {detectedColumns.map((col, idx) => (
+                      <div key={idx} className="flex items-center gap-4 p-3 bg-slate-800 rounded-lg">
+                        <div className="flex-1">
+                          <span className="text-slate-300 font-medium">{col}</span>
+                        </div>
+                        <div className="flex-1">
+                          <select
+                            value={columnMapping[col] || ''}
+                            onChange={(e) => setColumnMapping({...columnMapping, [col]: e.target.value})}
+                            className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white focus:border-cyan-400 focus:outline-none"
+                          >
+                            {targetFields[importType]?.map((field, fieldIdx) => (
+                              <option key={fieldIdx} value={field.value}>{field.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleFinalImport}
+                  disabled={loading}
+                  className="w-full bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-600 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <><Loader className="w-5 h-5 animate-spin" /> Import en cours...</>
+                  ) : (
+                    <><Check className="w-5 h-5" /> Valider et importer</>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+
+          {mappingStep === 'importing' && (
+            <div className="text-center py-8">
+              <Loader className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
+              <h3 className="text-xl font-bold text-white mb-2">Import en cours...</h3>
+              <p className="text-slate-400">Veuillez patienter pendant le traitement des données</p>
+            </div>
+          )}
+
+          {status && (
+            <div className={`mt-6 p-4 rounded-lg border-2 ${
+              status.success 
+                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' 
+                : 'bg-red-500/10 border-red-500 text-red-400'
+            }`}>
+              <div className="flex items-start gap-3">
+                {status.success ? (
+                  <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <p className="font-semibold">{status.message}</p>
+                  {status.details && (
+                    <p className="text-sm mt-1 opacity-90">{status.details}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'export' && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+          <div className="text-center mb-8">
+            <Download className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Exporter les Données</h2>
+            <p className="text-slate-400">Téléchargez vos données au format CSV</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <button
+              onClick={() => handleExport('articles')}
+              disabled={loading}
+              className="p-6 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-600 border border-slate-600 rounded-lg transition-all"
+            >
+              <h3 className="text-lg font-semibold text-white mb-2">Articles / Produits</h3>
+              <p className="text-slate-400 text-sm mb-4">Exporter tous les articles du catalogue</p>
+              <div className="flex items-center justify-center gap-2 text-cyan-400">
+                <Download className="w-5 h-5" />
+                <span>Télécharger CSV</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleExport('emplacements')}
+              disabled={loading}
+              className="p-6 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-600 border border-slate-600 rounded-lg transition-all"
+            >
+              <h3 className="text-lg font-semibold text-white mb-2">Emplacements</h3>
+              <p className="text-slate-400 text-sm mb-4">Exporter tous les emplacements de l'entrepôt</p>
+              <div className="flex items-center justify-center gap-2 text-cyan-400">
+                <Download className="w-5 h-5" />
+                <span>Télécharger CSV</span>
+              </div>
+            </button>
+          </div>
+
+          {status && (
+            <div className={`mt-6 p-4 rounded-lg border-2 ${
+              status.success 
+                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' 
+                : 'bg-red-500/10 border-red-500 text-red-400'
+            }`}>
+              <div className="flex items-start gap-3">
+                {status.success ? (
+                  <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <p className="font-semibold">{status.message}</p>
+                  {status.details && (
+                    <p className="text-sm mt-1 opacity-90">{status.details}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
