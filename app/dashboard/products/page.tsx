@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } frouseState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Package, Plus, Search, Filter, Tag, BarChart3, AlertCircle, Edit, Trash2 } from 'lucide-react';
 
 interface Product {
