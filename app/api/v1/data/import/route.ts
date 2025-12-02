@@ -280,7 +280,7 @@ export async function POST(request: NextRequest) {
         // 6. Sauvegarder les données valides en base de données
     if (result.data && result.data.length > 0) {
       try {
-        const collectionName = importType; // 'articles' ou 'emplacements'
+              const collectionName = importType === 'articles' ? 'products' : importType; // Map 'articles' to 'products', keep others
       const batch = adminDb.batch();        
         result.data.forEach((item: any) => {
         const docRef = adminDb.collection(collectionName).doc();          batch.set(docRef, {
