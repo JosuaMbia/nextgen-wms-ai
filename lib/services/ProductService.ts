@@ -90,7 +90,7 @@ class ProductService {
     userId: string
   ): Promise<Product> {
     try {
-      const productsCollection = collection(db, 'tenants', tenantId, 'products');
+      const productsCollection = collection(db, 'products');
 
       // Check if SKU already exists
       const skuQuery = query(productsCollection, where('sku', '==', data.sku));
@@ -133,7 +133,7 @@ class ProductService {
    */
   async getProduct(tenantId: string, productId: string): Promise<Product | null> {
     try {
-      const docRef = doc(db, 'tenants', tenantId, 'products', productId);
+      const docRef = doc(db, 'products', productId);
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
@@ -158,7 +158,7 @@ class ProductService {
    */
   async getProductBySku(tenantId: string, sku: string): Promise<Product | null> {
     try {
-      const productsCollection = collection(db, 'tenants', tenantId, 'products');
+      const productsCollection = collection(db, 'products');
       const q = query(productsCollection, where('sku', '==', sku), limit(1));
       const querySnapshot = await getDocs(q);
 
@@ -185,7 +185,7 @@ class ProductService {
    */
   async listProducts(tenantId: string, filters: ProductFilters = {}): Promise<Product[]> {
     try {
-      const productsCollection = collection(db, 'tenants', tenantId, 'products');
+      const productsCollection = collection(db, 'products');
       const constraints: QueryConstraint[] = [];
 
       if (filters.category) {
@@ -250,7 +250,7 @@ class ProductService {
     userId: string
   ): Promise<Product> {
     try {
-      const docRef = doc(db, 'tenants', tenantId, 'products', productId);
+      const docRef = doc(db, 'products', productId);
       
       await updateDoc(docRef, {
         ...updates,
@@ -270,7 +270,7 @@ class ProductService {
    */
   async deleteProduct(tenantId: string, productId: string): Promise<void> {
     try {
-      const docRef = doc(db, 'tenants', tenantId, 'products', productId);
+      const docRef = doc(db, 'products', productId);
       await deleteDoc(docRef);
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -283,7 +283,7 @@ class ProductService {
    */
   async getProductStats(tenantId: string): Promise<ProductStats> {
     try {
-      const productsCollection = collection(db, 'tenants', tenantId, 'products');
+      const productsCollection = collection(db, 'products');
       const querySnapshot = await getDocs(productsCollection);
 
       let totalProducts = 0;
