@@ -1,33 +1,26 @@
 /**
  * Firebase Admin SDK pour les routes API côté serveur
+ * Utilise le service account JSON complet encodé en base64
  */
 
 import * as admin from 'firebase-admin';
 
 // Initialisation du SDK Admin (singleton pattern)
 if (!admin.apps.length) {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    console.error('❌ Variables d\'environnement Firebase manquantes:');
-    console.error('FIREBASE_PROJECT_ID:', !!projectId);
-    console.error('FIREBASE_CLIENT_EMAIL:', !!clientEmail);
-    console.error('FIREBASE_PRIVATE_KEY:', !!privateKey);
-    throw new Error('Firebase Admin: variables d\'environnement manquantes');
+  if (!serviceAccountBase64) {
+    console.error('❌ Variable d\'environnement FIREBASE_SERVICE_ACCOUNT_BASE64 manquante');
+    throw new Error('Firebase Admin: FIREBASE_SERVICE_ACCOUNT_BASE64 manquante');
   }
 
   try {
+    // Décoder le JSON du service account depuis base64
+    const serviceAccountJson = Buffer.from(serviceAccountBase64, 'base64').toString('utf8');
+    const serviceAccount = JSON.parse(serviceAccountJson);
+
     admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        // La clé privée doit être au format avec \n échappés
-        // Convertir les \\n littéraux en véritables sauts de ligne si nécessaire
-                // Convertir les \n littéraux en véritables sauts de ligne
-        privateKey: privateKey.split('\\n').join('\n'),
-      }),
+      credential: admin.credential.cert(serviceAccount),
     });
     console.log('✅ Firebase Admin initialisé avec succès');
   } catch (error) {
