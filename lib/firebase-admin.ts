@@ -24,8 +24,7 @@ if (!admin.apps.length) {
         projectId,
         clientEmail,
         // La clé privée doit être au format avec \\n échappés
-        privateKey: privateKey.replace(/\\n/g, '\n'),
-      }),
+            privateKey,      }),
     });
     console.log('✅ Firebase Admin initialisé avec succès');
   } catch (error) {
