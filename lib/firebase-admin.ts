@@ -25,7 +25,9 @@ if (!admin.apps.length) {
         clientEmail,
         // La clé privée doit être au format avec \n échappés
         // Convertir les \\n littéraux en véritables sauts de ligne si nécessaire
-        privateKey: privateKey.replace(/\\n/g, '\n'),
+                // La clé doit être au format PEM avec de vrais sauts de ligne
+        // JSON.parse permet de gérer correctement les \n échappés
+        privateKey: JSON.parse(`"${privateKey}"`),
       }),
     });
     console.log('✅ Firebase Admin initialisé avec succès');
