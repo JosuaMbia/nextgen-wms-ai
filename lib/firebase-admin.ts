@@ -23,9 +23,10 @@ if (!admin.apps.length) {
       credential: admin.credential.cert({
         projectId,
         clientEmail,
-        // La clé privée doit être au format avec \\n éc// La clé privée doit être au format avec \n échappés
-        // Convertir les \n littéraux en véritables sauts de ligne si nécessaire
-        privateKey: privateKey.includes('\\n') ? privateKey.replace(/\\n/g, '\n') : privateKey,      }),
+        // La clé privée doit être au format avec \n échappés
+        // Convertir les \\n littéraux en véritables sauts de ligne si nécessaire
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      }),
     });
     console.log('✅ Firebase Admin initialisé avec succès');
   } catch (error) {
