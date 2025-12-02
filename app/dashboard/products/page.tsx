@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState } frouseState, useEffect } from 'react';
 import { Package, Plus, Search, Filter, Tag, BarChart3, AlertCircle, Edit, Trash2 } from 'lucide-react';
 
 interface Product {
@@ -15,7 +15,7 @@ interface Product {
   warehouse: string;
 }
 
-const mockProducts: Product[] = [
+const []: Product[] = [
   { id: '1', sku: 'SKU-001', name: 'Industrial Sensor A1', category: 'Electronics', quantity: 1250, minStock: 200, price: 45.99, status: 'in_stock', warehouse: 'Main DC' },
   { id: '2', sku: 'SKU-002', name: 'Steel Bracket Type B', category: 'Hardware', quantity: 85, minStock: 100, price: 12.50, status: 'low_stock', warehouse: 'North Hub' },
   { id: '3', sku: 'SKU-003', name: 'Hydraulic Pump H200', category: 'Machinery', quantity: 450, minStock: 50, price: 299.99, status: 'in_stock', warehouse: 'Main DC' },
@@ -25,11 +25,17 @@ const mockProducts: Product[] = [
 ];
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+
+    useEffect(() => {
+    fetch('/api/v1/products')
+      .then(res => res.json())
+      .then(data => setProducts(data.products || []))
+      .catch(err => console.error('Error loading products:', err));
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
-
   const categories = ['all', ...new Set(products.map(p => p.category))];
 
   const filteredProducts = products.filter(p => {
