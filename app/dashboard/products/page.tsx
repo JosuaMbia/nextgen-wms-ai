@@ -30,7 +30,7 @@ export default function ProductsPage() {
     useEffect(() => {
     fetch('/api/v1/products')
       .then(res => res.json())
-      .then(data => setProducts(data.products || []))
+      .then(data => setProducts(data.data || []))
       .catch(err => console.error('Error loading products:', err));
   }, []);
   const [searchTerm, setSearchTerm] = useState('');
