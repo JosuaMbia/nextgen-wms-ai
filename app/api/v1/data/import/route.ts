@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-Force redeploy with corrected Firebase private key
+// Force redeploy with corrected Firebase private key
 import OpenAI from 'openai';
 import * as XLSX from 'xlsx';
 import { adminDb } from '@/lib/firebase-admin';
