@@ -320,4 +320,55 @@ export default function ProductsPage() {
                   <input
                     type="text"
                     value={formData.category}
-                    onChange={(e) => setForm
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+                    required
+                  />
+                </div>
+              </div>
+              
+              {/* Stock Management Section */}
+              <div className="border-t border-slate-600 pt-4 mt-4">
+                <h3 className="font-semibold text-white mb-3">Stock Management</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Avg Stock</label>
+                    <input
+                      type="number"
+                      value={formData.avgStock}
+                      onChange={(e) => setFormData({ ...formData, avgStock: Number(e.target.value) })}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Max Stock</label>
+                    <input
+                      type="number"
+                      value={formData.maxStock}
+                      onChange={(e) => setFormData({ ...formData, maxStock: Number(e.target.value) })}
+                      className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 mt-4 border-t border-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 rounded px-4 py-2 text-white">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-cyan-600 hover:bg-cyan-700 rounded px-4 py-2 text-white font-medium">
+                  {editingProduct ? 'Update' : 'Add'} Product
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
