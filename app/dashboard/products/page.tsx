@@ -9,10 +9,10 @@ interface Product {
   name: string;
   category: string;
   quantity: number;
-  minStock: number;
+  minStock?: number;
   price: number;
-  status: 'in_stock' | 'low_stock' | 'out_of_stock';
-  warehouse: string;
+  status?: 'in_stock' | 'low_stock' | 'out_of_stock';
+  warehouse?: string;
 }
 
 const []: Product[] = [
@@ -27,15 +27,17 @@ const []: Product[] = [
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
 
-    useEffect(() => {
+  useEffect(() => {
     fetch('/api/v1/products')
       .then(res => res.json())
       .then(data => setProducts(data.data || []))
       .catch(err => console.error('Error loading products:', err));
   }, []);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+
   const categories = ['all', ...new Set(products.map(p => p.category))];
 
   const filteredProducts = products.filter(p => {
@@ -43,6 +45,14 @@ export default function ProductsPage() {
     const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Calculate status dynamically for products without status field
+  const getProductStatus = (product: Product): 'in_stock' | 'low_stock' | 'out_of_stock' => {
+    if (product.status) return product.status;
+    if (product.quantity === 0) return 'out_of_stock';
+    if (product.minStock && product.quantity < product.minStock) return 'low_stock';
+    return 'in_stock';
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -55,10 +65,10 @@ export default function ProductsPage() {
 
   const stats = {
     total: products.length,
-    inStock: products.filter(p => p.status === 'in_stock').length,
-    lowStock: products.filter(p => p.status === 'low_stock').length,
-    outOfStock: products.filter(p => p.status === 'out_of_stock').length,
-    totalValue: products.reduce((sum, p) => sum + (p.quantity * p.price), 0),
+    inStock: products.filter(p => getProductStatus(p) === 'in_stock').length,
+    lowStock: products.filter(p => getProductStatus(p) === 'low_stock').length,
+    outOfStock: products.filter(p => getProductStatus(p) === 'out_of_stock').length,
+    totalValue: products.reduce((sum, p) => sum + (p.quantity * (p.price || 0)), 0),
   };
 
   return (
@@ -133,13 +143,13 @@ export default function ProductsPage() {
                 <td className="px-4 py-3 text-white font-medium">{product.name}</td>
                 <td className="px-4 py-3 text-gray-300">{product.category}</td>
                 <td className="px-4 py-3">
-                  <span className={product.quantity < product.minStock ? 'text-yellow-400' : 'text-white'}>{product.quantity.toLocaleString()}</span>
-                  <span className="text-gray-500 text-sm"> / {product.minStock}</span>
+                  <span className={product.minStock && product.quantity < product.minStock ? 'text-yellow-400' : 'text-white'}>{product.quantity.toLocaleString()}</span>
+                  {product.minStock && <span className="text-gray-500 text-sm"> / {product.minStock}</span>}
                 </td>
-                <td className="px-4 py-3 text-white">${product.price.toFixed(2)}</td>
+                <td className="px-4 py-3 text-white">${product.price ? product.price.toFixed(2) : '0.00'}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
-                    {product.status.replace('_', ' ')}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(getProductStatus(product))}`}>
+                    {getProductStatus(product).replace('_', ' ')}
                   </span>
                 </td>
                 <td className="px-4 py-3">
