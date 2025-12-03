@@ -1,40 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { productService } from '@/lib/services/ProductService';
 import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// Product schema
-const ProductCreateSchema = z.object({
+// Simplified Product schema matching actual data structure
+const ProductSchema = z.object({
   sku: z.string().min(1),
-  name: z.string().min(1).max(200),
-  description: z.string().optional(),
+  name: z.string().min(1),
   category: z.string().min(1),
-  barcode: z.string().optional(),
-  brand: z.string().optional(),
-  manufacturer: z.string().optional(),
-  dimensions: z.object({
-    length: z.number().min(0),
-    width: z.number().min(0),
-    height: z.number().min(0),
-    unit: z.enum(['cm', 'in', 'm'])
-  }),
-  weight: z.object({
-    value: z.number().min(0),
-    unit: z.enum(['kg', 'lb', 'g'])
-  }),
-  pricing: z.object({
-    cost: z.number().min(0),
-    price: z.number().min(0),
-    currency: z.string().default('USD'),
-    taxRate: z.number().min(0).optional()
-  }),
-  images: z.array(z.string()).default([]),
-  status: z.enum(['active', 'inactive', 'discontinued']).default('active'),
-  tags: z.array(z.string()).default([]),
-  attributes: z.record(z.any()).default({})
+  quantity: z.number().min(0),
+  price: z.number().min(0),
+  // Stock Management - NEW
+  minStock: z.number().min(0).optional(),
+  avgStock: z.number().min(0).optional(),
+  maxStock: z.number().min(0).optional(),
+  // Optional fields
+  warehouse: z.string().optional(),
+  status: z.enum(['in_stock', 'low_stock', 'out_of_stock']).optional(),
+  description: z.string().optional(),
+  // AI Suggestions - NEW
+  aiSuggestedMin: z.number().optional(),
+  aiSuggestedAvg: z.number().optional(),
+  aiSuggestedMax: z.number().optional(),
+  lastAiAnalysis: z.any().optional(),
+  aiConfidenceScore: z.number().min(0).max(100).optional(),
 });
 
-const ProductUpdateSchema = ProductCreateSchema.partial();
+const ProductUpdateSchema = ProductSchema.partial();
 
 // GET /api/v1/products - List products
 export async function GET(request: NextRequest) {
@@ -45,13 +37,13 @@ export async function GET(request: NextRequest) {
     const filters = {
       category: searchParams.get('category') || undefined,
       status: searchParams.get('status') || undefined,
-      brand: searchParams.get('brand') || undefined,
       search: searchParams.get('search') || undefined,
       limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
     };
 
-    // Utiliser Admin SDK directement pour contourner les règles de sécurité Firestore
+    // Use Admin SDK to bypass Firestore rules
     const snapshot = await adminDb.collection('products').get();
+    
     const products = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -59,11 +51,22 @@ export async function GET(request: NextRequest) {
         sku: data.sku,
         name: data.nom || data.name,
         category: data.categorie || data.category,
-        quantity: data.quantite || data.quantity,
+        quantity: data.quantite || data.quantity || 0,
+        price: data.prix || data.price || 0,
+        // Stock Management
         minStock: data.minStock,
-        price: data.prix || data.price,
+        avgStock: data.avgStock,
+        maxStock: data.maxStock,
+        // Optional
+        warehouse: data.warehouse,
         status: data.status,
-        warehouse: data.warehouse
+        description: data.description,
+        // AI fields
+        aiSuggestedMin: data.aiSuggestedMin,
+        aiSuggestedAvg: data.aiSuggestedAvg,
+        aiSuggestedMax: data.aiSuggestedMax,
+        lastAiAnalysis: data.lastAiAnalysis,
+        aiConfidenceScore: data.aiConfidenceScore,
       };
     });
 
@@ -87,9 +90,18 @@ export async function POST(request: NextRequest) {
     const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
     const body = await request.json();
     
-    const validatedData = ProductCreateSchema.parse(body);
+    const validatedData = ProductSchema.parse(body);
     
-    const product = await productService.createProduct(tenantId, validatedData as any, 'api-user');
+    // Create product in Firestore
+    const productRef = await adminDb.collection('products').add({
+      ...validatedData,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      tenantId
+    });
+
+    const productDoc = await productRef.get();
+    const product = { id: productDoc.id, ...productDoc.data() };
 
     return NextResponse.json({
       success: true,
@@ -103,7 +115,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
     console.error('Error in POST /api/v1/products:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
@@ -112,7 +123,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT /api/v1/products - Update product
+// PUT /api/v1/products/:id - Update product
 export async function PUT(request: NextRequest) {
   try {
     const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
@@ -129,7 +140,24 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const validatedData = ProductUpdateSchema.parse(body);
     
-    const product = await productService.updateProduct(tenantId, productId, validatedData as any, 'api-user');
+    // Update product in Firestore
+    const productRef = adminDb.collection('products').doc(productId);
+    const productDoc = await productRef.get();
+
+    if (!productDoc.exists) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    await productRef.update({
+      ...validatedData,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+
+    const updatedDoc = await productRef.get();
+    const product = { id: updatedDoc.id, ...updatedDoc.data() };
 
     return NextResponse.json({
       success: true,
@@ -143,7 +171,6 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-
     console.error('Error in PUT /api/v1/products:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
@@ -152,7 +179,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/v1/products - Delete product
+// DELETE /api/v1/products/:id - Delete product
 export async function DELETE(request: NextRequest) {
   try {
     const tenantId = request.headers.get('x-tenant-id') || 'default-tenant';
@@ -166,7 +193,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await productService.deleteProduct(tenantId, productId);
+    const productRef = adminDb.collection('products').doc(productId);
+    const productDoc = await productRef.get();
+
+    if (!productDoc.exists) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    await productRef.delete();
 
     return NextResponse.json({
       success: true,
