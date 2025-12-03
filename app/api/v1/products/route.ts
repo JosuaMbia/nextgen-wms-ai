@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Utiliser Admin SDK directement pour contourner les règles de sécurité Firestore
     const snapshot = await adminDb.collection('products').get();
-    const products = snapshot.docs.map(doc => ({const products = snapshot.docs.map(doc => {
+    const products = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
