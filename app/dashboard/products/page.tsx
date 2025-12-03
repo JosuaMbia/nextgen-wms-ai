@@ -43,7 +43,7 @@ export default function ProductsPage() {
       if (res.ok) {
         const data = await fetch('/api/v1/products');
         const products = await data.json();
-        setProducts(Array.isArray(products) ? products : products.products || []);
+        setProducts(Array.isArray(products) ? products : products.data || []);
         setShowAddModal(false);
         setFormData({ sku: '', name: '', category: '', quantity: 0, minStock: 0, avgStock: 0, maxStock: 0, price: 0 });
       }
@@ -70,7 +70,7 @@ export default function ProductsPage() {
       if (res.ok) {
         const data = await fetch('/api/v1/products');
         const products = await data.json();
-        setProducts(Array.isArray(products) ? products : products.products || []);
+        setProducts(Array.isArray(products) ? products : products.data || []);
         setShowAddModal(false);
         setEditingProduct(null);
       }
@@ -85,7 +85,7 @@ export default function ProductsPage() {
       await fetch(`/api/v1/products?id=${id}`, { method: 'DELETE' });
       const data = await fetch('/api/v1/products');
       const products = await data.json();
-      setProducts(Array.isArray(products) ? products : products.products || []);
+      setProducts(Array.isArray(products) ? products : products.data || []);
     } catch (e) {
       console.error(e);
     }
