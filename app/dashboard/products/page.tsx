@@ -28,7 +28,7 @@ export default function ProductsPage() {
   useEffect(() => {
     fetch('/api/v1/products')
       .then(r => r.json())
-      .then(d => setProducts(Array.isArray(d) ? d : d.products || []))
+      .then(d => setProducts(Array.isArray(d) ? d : d.data || []))
       .catch(e => console.error(e));
   }, []);
 
