@@ -19,6 +19,7 @@ interface Product {
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     sku: '', name: '', category: '', quantity: 0,
@@ -91,6 +92,21 @@ export default function ProductsPage() {
     }
   };
 
+    // Filter products based on search term
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredProducts = normalizedSearch
+    ? products.filter((p) => {
+        const code = (p.sku || '').toLowerCase();
+        const name = (p.name || '').toLowerCase();
+        const category = (p.category || '').toLowerCase();
+        return (
+          code.includes(normalizedSearch) ||
+          name.includes(normalizedSearch) ||
+          category.includes(normalizedSearch)
+        );
+      })
+    : products;
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -98,6 +114,15 @@ export default function ProductsPage() {
         <button onClick={() => { setEditingProduct(null); setFormData({ sku: '', name: '', category: '', quantity: 0, minStock: 0, avgStock: 0, maxStock: 0, price: 0 }); setShowAddModal(true); }} className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 text-white rounded flex items-center gap-2">
           <Plus size={18} /> Add
         </button>
+      </div>
+            <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Rechercher un produit (SKU, nom, catégorie)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full max-w-md bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400"
+        />
       </div>
 
       <div className="overflow-x-auto bg-slate-800 rounded">
@@ -115,7 +140,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map(p => (
+            {filteredProducts.map(p => (
               <tr key={p.id} className="border-t border-slate-700 hover:bg-slate-700/50">
                 <td className="px-4 py-2">{p.sku}</td>
                 <td className="px-4 py-2">{p.name}</td>
