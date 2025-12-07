@@ -231,12 +231,12 @@ export default function PoReceiptsPage() {
       if (!res.ok) {
         console.error('Error creating receipt', await res.text());
         return;
-
+    }
       setOcrSuggestion(null);
       setReceiptLines([]);
       setSelectedFile(null);
+          } finally {
             }
-    } finally {
       setSubmittingReceipt(false);
     }
   };
