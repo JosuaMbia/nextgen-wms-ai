@@ -235,6 +235,7 @@ export default function PoReceiptsPage() {
       setOcrSuggestion(null);
       setReceiptLines([]);
       setSelectedFile(null);
+          // End of successful receipt submission
           } finally {
             setSubmittingReceipt(false);
     }
