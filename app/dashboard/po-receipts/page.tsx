@@ -239,6 +239,18 @@ export default function PoReceiptsPage() {
     } finally {
       setSubmittingReceipt(false);
     }
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={createPurchaseOrder}
+            className="inline-flex items-center px-4 py-2 rounded bg-indigo-600 text-white text-sm hover:bg-indigo-700"
+            disabled={creatingPo}
+          >
+            Créer le PO
+          </button>
+        </div>
+      </section>
   };
 
   return (
