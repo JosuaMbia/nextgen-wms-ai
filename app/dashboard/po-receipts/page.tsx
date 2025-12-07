@@ -236,7 +236,7 @@ export default function PoReceiptsPage() {
       setReceiptLines([]);
       setSelectedFile(null);
           } finally {
-            mittingReceipt(false);
+            setSubmittingReceipt(false);
     }
   };
 
