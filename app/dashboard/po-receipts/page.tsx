@@ -191,7 +191,7 @@ export default function PoReceiptsPage() {
     );
   };
 
-  // 3. POST /api/v1/receipts final
+  // 3. POST /api/v1/receipts final 
   const submitReceipt = async () => {
     if (!ocrSuggestion) return;
     if (!receiptLines.length) return;
