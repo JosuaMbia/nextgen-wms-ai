@@ -238,7 +238,7 @@ export default function PoReceiptsPage() {
       setSelectedFile(null);
     } finally {
       setSubmittingReceipt(false);
-    }
+    };
 
         <div className="flex justify-end">
           <button
