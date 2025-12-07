@@ -287,7 +287,7 @@ export default function PoReceiptsPage() {
             <button
               type="button"
               onClick={addPoLineRow}
-              className="text-sm text-indigo-600 hover:underline"
+              className="text-sm text-indigo-600 hover:underline">
             >
               Ajouter une ligne
             </button>
