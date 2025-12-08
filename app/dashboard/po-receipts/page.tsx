@@ -359,6 +359,9 @@ export default function PoReceiptsPage() {
               </tbody>
             </table>
           </div>
+                      <button type="button" onClick={createPurchaseOrder} disabled={creatingPo || !poNumber || !supplierName} className="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                      {creatingPo ? 'Création en cours...' : 'Créer le PO'}
+                                    </button>
 
       </div>
         </section>
