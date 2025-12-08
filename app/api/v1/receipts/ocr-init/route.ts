@@ -15,6 +15,17 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     // Parser le FormData contenant l'image
+        // Support both FormData (file upload) and JSON (for testing with mock data)
+    const contentType = request.headers.get('content-type') || '';
+    let file: File | null = null;
+
+    if (contentType.includes('application/json')) {
+      // JSON mode: frontend sends fileUrl for testing
+      const body = await request.json();
+      // In JSON mode, we skip actual file processing and go straight to mock data
+      console.log('OCR-init called with JSON mode:', body);
+    } else {
+      // FormData mode: actual file upload
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -24,10 +35,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+          }
 
     // Validation du type de fichier
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
+        if (file) {
+      if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         { 
           error: 'Invalid file type. Allowed types: JPEG, PNG, PDF',
@@ -48,6 +61,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+              }
 
     // ============================================
     // TODO: Intégrer un vrai service OCR ici
