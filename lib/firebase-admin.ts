@@ -30,6 +30,11 @@ if (!admin.apps.length) {
 }
 
 // Export de l'instance Firestore Admin
+
+// Helper function to initialize admin (for backwards compatibility)
+export function initAdmin() {
+  return admin;
+}
 export const adminDb = admin.firestore();
 
 // Export de l'instance Admin pour autres services (Auth, Storage, etc.)
