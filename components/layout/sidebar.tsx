@@ -33,6 +33,11 @@ export const navigation = [
     href: '/dashboard/picking',
     icon: Package,
   },
+    {
+          name: 'PO Receipts',
+          href: '/dashboard/po-receipts',
+          icon: Upload,
+        },
   {
     name: 'Analytics',
     href: '/dashboard/analytics',
