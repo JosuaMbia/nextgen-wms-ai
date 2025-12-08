@@ -140,7 +140,12 @@ export async function POST(request: NextRequest) {
     ocrData.extracted.tax = (subtotal * 0.2).toFixed(2); // TVA 20%
     ocrData.extracted.total = (subtotal * 1.2).toFixed(2);
 
-    return NextResponse.json(ocrData, { status: 200 });
+    return NextResponse.json({
+      poId: null,
+      poNumber: ocrData.extracted.documentNumber,
+      supplierName: ocrData.extracted.supplier,
+      lines: ocrData.extracted.lines
+    }, { status: 200 });
 
   } catch (error) {
     console.error('Error processing OCR:', error);
