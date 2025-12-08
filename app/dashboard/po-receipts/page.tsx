@@ -360,6 +360,7 @@ export default function PoReceiptsPage() {
             </table>
           </div>
 
+      </div>
         </section>
 
       {/* Bloc OCR + tableau de réception */}
