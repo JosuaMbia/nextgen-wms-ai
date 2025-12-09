@@ -145,6 +145,7 @@ export default function PoReceiptsPage() {
 
   const callOcrInit = async () => {
     // if (!selectedFile) return;
+        console.log('🚀 callOcrInit called');
 
     // Dans une version réelle : upload vers Storage ou autre, récupérer fileUrl.
     const fakeFileUrl = selectedFile ? `https://example.com/${selectedFile.name}` : 'https://example.com/test-invoice.pdf';
@@ -168,6 +169,7 @@ export default function PoReceiptsPage() {
 
     const suggestion: OcrReceiptSuggestion = await res.json();
     setOcrSuggestion(suggestion);
+        console.log('✅ OCR Response:', suggestion);
 
     const linesWithInput: ReceiptLineInput[] = suggestion.lines.map((l, idx) => ({
       ...l,
