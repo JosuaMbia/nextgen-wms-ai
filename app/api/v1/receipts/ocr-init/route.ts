@@ -161,7 +161,15 @@ export async function POST(request: NextRequest) {
       poId: null,
       poNumber: ocrData.extracted.documentNumber,
       supplierName: ocrData.extracted.supplier,
-      lines: ocrData.extracted.lines
+          lines: ocrData.extracted.lines.map(line => ({
+      poLineId: null,
+      sku: line.sku,
+      productName: line.productName,
+      expectedQty: null,
+      proposedQty: line.quantity,
+      uom: 'PCS',
+      matchConfidence: 0.85
+    }))
     }, { status: 200 });
 
   } catch (error) {
