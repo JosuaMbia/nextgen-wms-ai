@@ -24,6 +24,11 @@ export const navigation = [
     icon: ClipboardList,
   },
     {
+    name: 'Sales Orders',
+    href: '/dashboard/sales-orders',
+    icon: ClipboardList,
+  },
+    {
     name: 'Receiving',
     href: '/dashboard/receiving',
     icon: Package,
