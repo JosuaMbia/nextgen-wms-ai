@@ -73,7 +73,11 @@ export async function POST(request: NextRequest) {
     // const extractedText = detections[0]?.description || '';
     
     // Pour le développement, on simule une extraction OCR
-    console.log('Processing file:', file.name, file.type, `${(file.size / 1024).toFixed(2)}KB`);
+    if (file) {
+      console.log('Processing file:', file.name, file.type, `${(file.size / 1024).toFixed(2)}KB`);
+    } else {
+      console.log('OCR init called with JSON mode', body);
+    }
     
     // Simuler un délai de traitement OCR
     await new Promise(resolve => setTimeout(resolve, 1500));
