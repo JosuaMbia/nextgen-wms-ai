@@ -230,6 +230,40 @@ export default function PoReceiptsPage() {
         body: JSON.stringify(body),
       });
 
+            // 4. Generate Sales Order from OCR data
+      const soBody = {
+        ocrId: suggestion.poId,
+        quoteNumber: suggestion.poNumber,
+        clientId: suggestion.supplierName,
+        clientName: suggestion.supplierName,
+        clientEmail: '',
+        lines: suggestion.lines.map((l) => ({
+          lineId: l.lineId,
+          sku: l.sku,
+          productName: l.productName,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          totalPrice: l.quantity * l.unitPrice,
+          uom: l.uom,
+          ocrConfidence: l.ocrConfidence
+        })),
+        warehouseId: warehouseId,
+      };
+
+      const soRes = await fetch('/api/v1/sales-orders/generate-from-ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(soBody),
+      });
+
+      if (!soRes.ok) {
+        console.error('Error generating Sales Order from OCR', await soRes.text());
+        // Continue anyway - receipt was created
+      } else {
+        const soData = await soRes.json();
+        console.log('✅ Sales Order generated:', soData);
+      }
+
       if (!res.ok) {
         console.error('Error creating receipt', await res.text());
         return;
