@@ -247,7 +247,7 @@ export default function PoReceiptsPage() {
           uom: l.uom || 'PCS',
           ocrConfidence: l.matchConfidence
         })),
-        warehouseId: warehouseIdarehouseId,
+        warehouseId: warehouseId,
       };
 
       const soRes = await fetch('/api/v1/sales-orders/generate-from-ocr', {
