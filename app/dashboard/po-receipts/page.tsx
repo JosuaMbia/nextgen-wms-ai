@@ -232,22 +232,22 @@ export default function PoReceiptsPage() {
 
             // 4. Generate Sales Order from OCR data
       const soBody = {
-        ocrId: suggestion.poId,
-        quoteNumber: suggestion.poNumber,
-        clientId: suggestion.supplierName,
-        clientName: suggestion.supplierName,
+        ocrId: ocrSuggestion.poId,
+        quoteNumber: ocrSuggestion.poNumber || `QUOTE-${Date.now()}`,
+        clientId: ocrSuggestion.supplierName || 'unknown',
+        clientName: ocrSuggestion.supplierName || 'Client Inconnu',
         clientEmail: '',
-        lines: suggestion.lines.map((l) => ({
-          lineId: l.lineId,
-          sku: l.sku,
-          productName: l.productName,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          totalPrice: l.quantity * l.unitPrice,
-          uom: l.uom,
-          ocrConfidence: l.ocrConfidence
+        lines: ocrSuggestion.lines.map((l) => ({
+          lineId: l.poLineId || `line-${Date.now()}`,
+          sku: l.sku || '',
+          productName: l.productName || '',
+          quantity: l.proposedQty,
+          unitPrice: 0,
+          totalPrice: 0,
+          uom: l.uom || 'PCS',
+          ocrConfidence: l.matchConfidence
         })),
-        warehouseId: warehouseId,
+        warehouseId: warehouseIdarehouseId,
       };
 
       const soRes = await fetch('/api/v1/sales-orders/generate-from-ocr', {
