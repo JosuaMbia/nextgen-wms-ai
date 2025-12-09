@@ -144,10 +144,10 @@ export default function PoReceiptsPage() {
   };
 
   const callOcrInit = async () => {
-    if (!selectedFile) return;
+    // if (!selectedFile) return;
 
     // Dans une version réelle : upload vers Storage ou autre, récupérer fileUrl.
-    const fakeFileUrl = `https://example.com/${selectedFile.name}`;
+    const fakeFileUrl = selectedFile ? `https://example.com/${selectedFile.name}` : 'https://example.com/test-invoice.pdf';
 
     const body = {
       companyId,
@@ -378,7 +378,7 @@ export default function PoReceiptsPage() {
             type="button"
             onClick={callOcrInit}
             className="inline-flex items-center px-4 py-2 rounded bg-indigo-600 text-white text-sm hover:bg-indigo-700"
-            disabled={!selectedFile}
+            disabled={false} // Enabled for testing without file
           >
             Lancer l&apos;OCR
           </button>
