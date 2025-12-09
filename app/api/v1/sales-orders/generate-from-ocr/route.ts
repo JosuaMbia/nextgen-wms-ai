@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase-admin';
 import type { SalesOrder, SalesOrderLine, SOStatus } from '@/lib/sales-order-models';
 
 /**
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const totalAmount = salesOrderLines.reduce((sum, line) => sum + line.totalPrice, 0);
 
     // Create Sales Order
-    const soId = db.collection('sales-orders').doc().id;
+    const soId =adminDbdb.collection('sales-orders').doc().id;
     const now = Date.now();
 
     const salesOrder: SalesOrder = {
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Save to Firestore
-    await db.collection('sales-orders').doc(soId).set(salesOrder);
+    await adminDb.collection('sales-orders').doc(soId).set(salesOrder);
     
     // Increment counter
     await soCounterRef.set(
