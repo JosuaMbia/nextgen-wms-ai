@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     if (file) {
       console.log('Processing file:', file.name, file.type, `${(file.size / 1024).toFixed(2)}KB`);
     } else {
-      console.log('OCR init called with JSON mode', body);
+          console.log('OCR init called with JSON mode (no file)');
     }
     
     // Simuler un délai de traitement OCR
