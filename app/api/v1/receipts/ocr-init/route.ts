@@ -86,11 +86,10 @@ export async function POST(request: NextRequest) {
     // Dans une vraie implémentation, ces données seraient extraites du document
     const ocrData = {
       success: true,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      processedAt: new Date().toISOString(),
-      
+    
+    fileType: file?.type || 'application/pdf', 
+          fileSize: file?.size || 0,
+          processedAt: new Date().toISOString(),
       // Données extraites simulées
       extracted: {
         documentType: 'supplier_invoice', // ou 'delivery_note'
