@@ -230,6 +230,12 @@ export default function PoReceiptsPage() {
         body: JSON.stringify(body),
       });
 
+          // Check if receipt creation was successful before generating SO
+          if (!res.ok) {
+                  console.error('Error creating receipt', await res.text());
+                  return;
+                }
+
             // 4. Generate Sales Order from OCR data
       const soBody = {
         ocrId: ocrSuggestion.poId,
