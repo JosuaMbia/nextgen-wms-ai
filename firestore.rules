@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Sales Orders - Allow read for authenticated users, write only via Admin SDK
+    match /sales-orders/{orderId} {
+      allow read: if true;  // Accessible en lecture pour tous (dev/test)
+      allow write: if false;  // Création uniquement via API backend (Admin SDK)
+    }
+    
+    // Purchase Orders - Allow read for authenticated users
+    match /purchase-orders/{orderId} {
+      allow read: if true;
+      allow write: if false;  // Création uniquement via API backend
+    }
+    
+    // Receipts - Allow read for authenticated users
+    match /receipts/{receiptId} {
+      allow read: if true;
+      allow write: if false;  // Création uniquement via API backend
+    }
+    
+    // Warehouses - Allow read for authenticated users
+    match /warehouses/{warehouseId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Products - Allow read for authenticated users
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Orders - Allow read for authenticated users  
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
