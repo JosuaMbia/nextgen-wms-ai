@@ -34,8 +34,16 @@ export default function SalesOrdersPage() {
       
       setSalesOrders(orders);
       console.log('✅ Sales Orders loaded:', orders.length);
+            console.log('✅ Sales Orders loaded successfully:', orders.length, 'orders');
     } catch (err) {
       console.error('Error loading sales orders:', err);
+            console.error('❌ Firestore Error Details:', {
+                      error: err,
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        code: (err as any)?.code,
+        collection: 'sales-orders'
+      });
       setError('Erreur lors du chargement des commandes');
     } finally {
       setLoading(false);
