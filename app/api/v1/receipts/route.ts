@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { adminDB } from '@/lib/firebase-admin';
 
 /**
  * GET /api/v1/receipts
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const warehouseId = searchParams.get('warehouseId');
     const poId = searchParams.get('poId');
 
-    let query = db.collection('receipts');
+    let query = adminDB.collection('receipts');
 
     if (companyId) {
       query = query.where('companyId', '==', companyId) as any;
