@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { db } from '@/lib/firebase-admin';
 
 /**
  * GET /api/v1/receipts
@@ -8,7 +7,24 @@ import { Timestamp } from 'firebase-admin/firestore';
  */
 export async function GET(request: NextRequest) {
   try {
-    const snapshot = await adminDb.collection('receipts').orderBy('date', 'desc').get();
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
+    const warehouseId = searchParams.get('warehouseId');
+    const poId = searchParams.get('poId');
+
+    let query = db.collection('receipts');
+
+    if (companyId) {
+      query = query.where('companyId', '==', companyId) as any;
+    }
+    if (warehouseId) {
+      query = query.where('warehouseId', '==', warehouseId) as any;
+    }
+    if (poId) {
+      query = query.where('poId', '==', poId) as any;
+    }
+
+    const snapshot = await query.orderBy('receiptDate', 'desc').limit(100).get();
     
     const receipts = snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -17,12 +33,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: receipts,
-    });
+      receipts,
+    }, { status: 200 });
   } catch (error: any) {
     console.error('Error fetching receipts:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to fetch receipts' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
@@ -30,112 +46,141 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/receipts
- * Crée une nouvelle réception et met à jour les stocks + lots
+ * Crée une nouvelle réception, met à jour le stock via stock/movements,
+ * et met à jour le statut du PO
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { reference, supplier, date, lines } = body;
+    const { companyId, warehouseId, poId, reference, receiptDate, createdBy, lines, status } = body;
 
-    // Validation basique
-    if (!reference || !lines || !Array.isArray(lines) || lines.length === 0) {
+    // Validation
+    if (!companyId || !warehouseId || !poId || !reference || !lines || !Array.isArray(lines) || lines.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields: reference, lines' },
+        { error: 'Missing required fields: companyId, warehouseId, poId, reference, lines' },
         { status: 400 }
       );
     }
 
-    // Convertir la date string en Timestamp Firestore
-    const receiptDate = date ? Timestamp.fromDate(new Date(date)) : Timestamp.now();
+    const timestamp = new Date().toISOString();
 
-    // Préparer le document de réception
+    // 1. Créer le document receipt dans Firestore
     const receiptData = {
+      companyId,
+      warehouseId,
+      poId,
       reference,
-      supplier: supplier || '',
-      date: receiptDate,
-      status: 'received',
-      lines: lines.map((line: any) => ({
-        productId: line.productId,
-        sku: line.sku,
-        name: line.name,
-        orderedQty: line.orderedQty || null,
-        receivedQty: line.receivedQty,
-        lotNumber: line.lotNumber,
-        expiryDate: line.expiryDate ? Timestamp.fromDate(new Date(line.expiryDate)) : null,
-        temperatureZone: line.temperatureZone || 'ambient',
+      receiptDate: receiptDate || timestamp,
+      status: status || 'completed',
+      createdBy: createdBy || 'system',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lines: lines.map((l: any) => ({
+        lineId: l.lineId,
+        poLineId: l.poLineId || null,
+        sku: l.sku,
+        productName: l.productName,
+        expectedQty: l.expectedQty || null,
+        receivedQty: l.receivedQty,
+        uom: l.uom || 'PCS',
+        binLocation: l.binLocation || 'RECEPTION',
+        lotNumber: l.lotNumber || null,
+        serialNumber: l.serialNumber || null,
       })),
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
     };
 
-    // Transaction Firestore pour garantir la cohérence
-    const result = await adminDb.runTransaction(async (transaction) => {
-      // 1. Créer le document de réception
-      const receiptRef = adminDb.collection('receipts').doc();
-      transaction.set(receiptRef, receiptData);
+    const receiptRef = await db.collection('receipts').add(receiptData);
+    const receiptId = receiptRef.id;
 
-      // 2. Pour chaque ligne, mettre à jour le stock produit et créer/mettre à jour le lot
-      for (const line of lines) {
-        const { productId, receivedQty, lotNumber, sku, name, expiryDate, temperatureZone } = line;
+    console.log(`✅ Receipt created with ID: ${receiptId}`);
 
-        // Mettre à jour la quantité du produit
-        const productRef = adminDb.collection('products').doc(productId);
-        const productDoc = await transaction.get(productRef);
+    // 2. Pour chaque ligne, créer un mouvement de stock via l'API stock/movements
+    const stockMovementPromises = lines.map(async (line: any) => {
+      const stockMovementBody = {
+        companyId,
+        warehouseId,
+        sku: line.sku,
+        productName: line.productName,
+        movementType: 'IN',
+        quantity: line.receivedQty,
+        uom: line.uom || 'PCS',
+        binLocation: line.binLocation || 'RECEPTION',
+        reference: receiptId,
+        referenceType: 'RECEIPT',
+        lotNumber: line.lotNumber || null,
+        serialNumber: line.serialNumber || null,
+        createdBy: createdBy || 'system',
+        notes: `Réception depuis PO ${poId}`,
+      };
 
-        if (!productDoc.exists) {
-          throw new Error(`Product with ID ${productId} not found`);
-        }
+      // Appel interne à l'API stock/movements
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const stockRes = await fetch(`${baseUrl}/api/v1/stock/movements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(stockMovementBody),
+      });
 
-        const currentQty = productDoc.data()?.quantity || 0;
-        transaction.update(productRef, {
-          quantity: currentQty + receivedQty,
-          updatedAt: Timestamp.now(),
-        });
+      if (!stockRes.ok) {
+        const errorText = await stockRes.text();
+        console.error(`Error creating stock movement for SKU ${line.sku}:`, errorText);
+        throw new Error(`Failed to create stock movement for SKU ${line.sku}`);
+      }
 
-        // Créer ou mettre à jour le lot dans stockLots
-        const existingLotsSnapshot = await adminDb
-          .collection('stockLots')
-          .where('productId', '==', productId)
-          .where('lotNumber', '==', lotNumber)
-          .get();
+      const stockData = await stockRes.json();
+      console.log(`✅ Stock movement created for SKU ${line.sku}:`, stockData.movementId);
+      return stockData;
+    });
 
-        if (!existingLotsSnapshot.empty) {
-          // Lot existant : incrémenter la quantité
-          const existingLotDoc = existingLotsSnapshot.docs[0];
-          const existingQty = existingLotDoc.data().quantity || 0;
-          transaction.update(existingLotDoc.ref, {
-            quantity: existingQty + receivedQty,
-            updatedAt: Timestamp.now(),
-          });
-        } else {
-          // Nouveau lot : créer
-          const newLotRef = adminDb.collection('stockLots').doc();
-          transaction.set(newLotRef, {
-            productId,
-            sku,
-            name,
-            lotNumber,
-            expiryDate: expiryDate ? Timestamp.fromDate(new Date(expiryDate)) : null,
-            temperatureZone: temperatureZone || 'ambient',
-            quantity: receivedQty,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
+    await Promise.all(stockMovementPromises);
+
+    // 3. Mettre à jour le statut du PO
+    const poRef = db.collection('purchase_orders').doc(poId);
+    const poDoc = await poRef.get();
+
+    if (poDoc.exists) {
+      const poData = poDoc.data();
+      const poLines = poData?.lines || [];
+
+      // Calculer si le PO est partiellement reçu ou complètement reçu
+      let totalOrdered = 0;
+      let totalReceived = 0;
+
+      for (const poLine of poLines) {
+        totalOrdered += poLine.orderedQty || 0;
+        const receivedForThisLine = lines.find((l: any) => l.poLineId === poLine.lineId);
+        if (receivedForThisLine) {
+          totalReceived += receivedForThisLine.receivedQty || 0;
         }
       }
 
-      return receiptRef.id;
-    });
+      let newStatus = 'partially_received';
+      if (totalReceived >= totalOrdered) {
+        newStatus = 'closed';
+      }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Receipt created successfully',
-      data: { id: result },
-    });
+      await poRef.update({
+        status: newStatus,
+        updatedAt: timestamp,
+      });
+
+      console.log(`✅ PO ${poId} status updated to: ${newStatus}`);
+    } else {
+      console.warn(`⚠️ PO ${poId} not found, skipping status update`);
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        receiptId,
+        message: 'Receipt created, stock updated, and PO status updated successfully',
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Error creating receipt:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create receipt' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
